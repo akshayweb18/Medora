@@ -79,8 +79,12 @@ export function getAuthErrorMessage(error: any): string {
       return 'Please enter a valid email address.';
     case 'auth/weak-password':
       return 'Password should be at least 6 characters long.';
+    case 'auth/configuration-not-found':
+      return 'Firebase Authentication is not activated yet. Go to Firebase Console > Authentication > Click "Get Started" and enable your Sign-in providers (Email/Password and Google).';
+    case 'auth/unauthorized-domain':
+      return 'This domain is not authorized. In Firebase Console > Authentication > Settings > Authorized domains, add your Vercel URL.';
     case 'auth/operation-not-allowed':
-      return 'Google Sign-In is not enabled yet in your Firebase Console. Please go to Firebase Console > Authentication > Sign-in method and enable Google.';
+      return 'This sign-in method is not enabled yet in Firebase Console. Go to Firebase Console > Authentication > Sign-in method and enable it.';
     case 'auth/popup-closed-by-user':
       return 'Google sign-in popup was closed before completing.';
     case 'auth/popup-blocked':
