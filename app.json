@@ -1,0 +1,72 @@
+{
+  "expo": {
+    "name": "MediVault",
+    "slug": "medivault",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "medivault",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.medivault.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Required to scan prescriptions and capture medical images.",
+        "NSPhotoLibraryUsageDescription": "Required to import medical reports and images from your photo library.",
+        "NSPhotoLibraryAddUsageDescription": "Required to save medical images."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundColor": "#2D9CDB"
+      },
+      "package": "com.medivault.app",
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#2D9CDB",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#2D9CDB",
+          "sounds": []
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MediVault needs access to your photos to import medical images and reports."
+        }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ]
+    ],
+    "experiments": {}
+  }
+}

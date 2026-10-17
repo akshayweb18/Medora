@@ -1,0 +1,141 @@
+diff --git a/node_modules/expo-sqlite/web/wa-sqlite/AccessHandlePoolVFS.js b/node_modules/expo-sqlite/web/wa-sqlite/AccessHandlePoolVFS.js
+index 046fe6f..8fbc6ac 100644
+--- a/node_modules/expo-sqlite/web/wa-sqlite/AccessHandlePoolVFS.js
++++ b/node_modules/expo-sqlite/web/wa-sqlite/AccessHandlePoolVFS.js
+@@ -230,8 +230,8 @@ export class AccessHandlePoolVFS extends FacadeVFS {
+       this.#directoryHandle = handle;
+ 
+       await this.#acquireAccessHandles();
+-      if (this.getCapacity() === 0) {
+-        await this.addCapacity(DEFAULT_CAPACITY);
++      if (this.#availableAccessHandles.size < DEFAULT_CAPACITY) {
++        await this.addCapacity(DEFAULT_CAPACITY - this.#availableAccessHandles.size);
+       }
+     }
+     return true;
+@@ -304,13 +304,17 @@ export class AccessHandlePoolVFS extends FacadeVFS {
+     // Open access handles in parallel, separating associated and unassociated.
+     await Promise.all(
+       files.map(async ([name, handle]) => {
+-        const accessHandle = await handle.createSyncAccessHandle();
+-        this.#mapAccessHandleToName.set(accessHandle, name);
+-        const path = this.#getAssociatedPath(accessHandle);
+-        if (path) {
+-          this.#mapPathToAccessHandle.set(path, accessHandle);
+-        } else {
+-          this.#availableAccessHandles.add(accessHandle);
++        try {
++          const accessHandle = await handle.createSyncAccessHandle();
++          this.#mapAccessHandleToName.set(accessHandle, name);
++          const path = this.#getAssociatedPath(accessHandle);
++          if (path) {
++            this.#mapPathToAccessHandle.set(path, accessHandle);
++          } else {
++            this.#availableAccessHandles.add(accessHandle);
++          }
++        } catch (err) {
++          // A file locked by another tab or stale worker is skipped
+         }
+       })
+     );
+diff --git a/node_modules/expo-sqlite/web/worker.ts b/node_modules/expo-sqlite/web/worker.ts
+index deaf721..eae8c0e 100644
+--- a/node_modules/expo-sqlite/web/worker.ts
++++ b/node_modules/expo-sqlite/web/worker.ts
+@@ -52,8 +52,13 @@ const MAX_INT32 = 0x7fffffff;
+ const MIN_INT32 = -0x80000000;
+ 
+ let _sqlite3: SQLiteAPI | null = null;
+-let _vfs: AccessHandlePoolVFS | null = null;
++let _vfs: AccessHandlePoolVFS | MemoryVFS | null = null;
+ let _vfsMemory: MemoryVFS | null = null;
++let _initPromise: Promise<{
++  sqlite3: SQLiteAPI;
++  vfs: AccessHandlePoolVFS | MemoryVFS;
++  vfsMemory: MemoryVFS;
++}> | null = null;
+ 
+ const databaseIdMap = new Map<number, DatabaseEntity>();
+ const statementIdMap = new Map<number, StatementEntity>();
+@@ -774,38 +779,57 @@ async function maybeFinalizeAllStatements(nativeDatabaseId: number) {
+ 
+ async function maybeInitAsync(): Promise<{
+   sqlite3: SQLiteAPI;
+-  vfs: AccessHandlePoolVFS;
++  vfs: AccessHandlePoolVFS | MemoryVFS;
+   vfsMemory: MemoryVFS;
+ }> {
+-  if (!_sqlite3) {
+-    const module = await WaSQLiteFactory({
+-      locateFile: () => wasmModule,
+-    });
+-    _sqlite3 = SQLite.Factory(module) as SQLiteAPI;
+-    if (!_sqlite3) {
+-      throw new Error('Failed to initialize wa-sqlite');
+-    }
++  if (!_initPromise) {
++    _initPromise = (async () => {
++      const module = await WaSQLiteFactory({
++        locateFile: () => wasmModule,
++      });
++      const sqlite3 = SQLite.Factory(module) as SQLiteAPI;
++      if (!sqlite3) {
++        throw new Error('Failed to initialize wa-sqlite');
++      }
+ 
+-    if (_vfs == null) {
+-      _vfs = await AccessHandlePoolVFS.create(VFS_NAME_PERSISTENT, module);
+-      if (_vfs == null) {
+-        throw new Error('Failed to initialize AccessHandlePoolVFS');
++      let vfs: AccessHandlePoolVFS | MemoryVFS | null = null;
++      try {
++        vfs = await AccessHandlePoolVFS.create(VFS_NAME_PERSISTENT, module);
++      } catch (e) {
++        console.warn(
++          'AccessHandlePoolVFS unavailable (OPFS locked by another tab or not supported). Falling back to MemoryVFS:',
++          e
++        );
+       }
+-    }
+-    _sqlite3.vfs_register(_vfs, true);
+ 
+-    if (_vfsMemory == null) {
+-      _vfsMemory = await MemoryVFS.create(VFS_NAME_MEMORY, module);
+-      if (_vfsMemory == null) {
++      const vfsMemory = await MemoryVFS.create(VFS_NAME_MEMORY, module);
++      if (vfsMemory == null) {
+         throw new Error('Failed to initialize MemoryVFS');
+       }
+-    }
+-    _sqlite3.vfs_register(_vfsMemory, false);
+-  }
+-  if (_vfs == null || _vfsMemory == null) {
+-    throw new Error('Invalid VFS state');
++
++      if (vfs != null) {
++        sqlite3.vfs_register(vfs, true);
++      } else {
++        const vfsPersistentFallback = await MemoryVFS.create(VFS_NAME_PERSISTENT, module);
++        sqlite3.vfs_register(vfsPersistentFallback, true);
++        vfs = vfsPersistentFallback;
++      }
++      sqlite3.vfs_register(vfsMemory, false);
++
++      _sqlite3 = sqlite3;
++      _vfs = vfs;
++      _vfsMemory = vfsMemory;
++
++      return { sqlite3, vfs, vfsMemory };
++    })().catch((err) => {
++      _initPromise = null;
++      _sqlite3 = null;
++      _vfs = null;
++      _vfsMemory = null;
++      throw err;
++    });
+   }
+-  return { sqlite3: _sqlite3, vfs: _vfs, vfsMemory: _vfsMemory };
++  return _initPromise;
+ }
+ 
+ //#endregion Internal helpers
