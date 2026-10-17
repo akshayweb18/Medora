@@ -3,6 +3,7 @@
  * Uploads prescription images, medical lab reports, and profile avatars.
  */
 import { Platform } from 'react-native';
+import { File } from 'expo-file-system';
 
 export const CLOUDINARY_CONFIG = {
   cloudName: 'jpsqqehv',
@@ -128,6 +129,7 @@ export async function uploadToCloudinary(
   const mimeType = isPdf ? 'application/pdf' : 'image/jpeg';
 
   if (Platform.OS === 'web') {
+    // Web: fetch the blob from a blob/data URL, or append the URI string directly
     if (fileUri.startsWith('blob:') || fileUri.startsWith('data:')) {
       const res = await fetch(fileUri);
       const blob = await res.blob();
@@ -136,12 +138,23 @@ export async function uploadToCloudinary(
       formData.append('file', fileUri);
     }
   } else {
-    // React Native native FormData file shape
-    formData.append('file', {
-      uri: fileUri,
-      type: mimeType,
-      name: fileName,
-    } as any);
+    // Native (Expo Go + dev builds + production):
+    // The { uri, type, name } object form is rejected by React Native's fetch polyfill
+    // in Expo Go ("Unsupported FormDataPart implementation").
+    // Use the new SDK 57 File.arrayBuffer() API to read bytes and construct a proper Blob.
+    try {
+      const file = new File(fileUri);
+      const buffer = await file.arrayBuffer();
+      const blob = new Blob([buffer], { type: mimeType });
+      formData.append('file', blob as any, fileName);
+    } catch {
+      // Fallback: legacy RN file-object shape (works in standalone/dev builds)
+      formData.append('file', {
+        uri: fileUri,
+        type: mimeType,
+        name: fileName,
+      } as any);
+    }
   }
 
   formData.append('api_key', CLOUDINARY_CONFIG.apiKey);

@@ -7,7 +7,15 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { LogBox, StyleSheet } from 'react-native';
+
+// Suppress the known Expo Go limitation warning for expo-notifications.
+// The actual message in expo-notifications/build/index.js starts with a backtick:
+//   `expo-notifications` functionality is not fully supported in Expo Go
+// The module degrades gracefully — this is purely informational noise.
+LogBox.ignoreLogs([
+  '`expo-notifications` functionality is not fully supported in Expo Go',
+]);
 
 import { AuthProvider } from '@/store/authStore';
 import { ProfileProvider } from '@/store/profileStore';
