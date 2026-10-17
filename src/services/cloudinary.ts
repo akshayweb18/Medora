@@ -12,7 +12,7 @@ import { File, UploadType } from 'expo-file-system';
 export const CLOUDINARY_CONFIG = {
   cloudName: 'jpsqqehv',
   apiKey: '452868775779148',
-  apiSecret: '7duTIWFq2yLbw54coDFD9Ff5jYc',
+  apiSecret: '7duTlWFq2yLbw54coDFD9Ff5jYc',
 };
 
 export interface CloudinaryUploadResult {
