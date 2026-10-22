@@ -26,7 +26,7 @@ interface TodayDose { medicine: Medicine; time: ScheduledTime; scheduledFor: str
 
 export default function HomeScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
-  const { user } = useAuth();
+  const { user, syncVersion } = useAuth();
   const [imageError, setImageError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [todayDoses, setTodayDoses] = useState<TodayDose[]>([]);
@@ -83,7 +83,7 @@ export default function HomeScreen() {
     } else if (!profileLoading) {
       setDataLoading(false);
     }
-  }, [activeProfile, profileLoading, loadData]);
+  }, [activeProfile, profileLoading, loadData, syncVersion]);
 
   useFocusEffect(useCallback(() => {
     if (activeProfile) {

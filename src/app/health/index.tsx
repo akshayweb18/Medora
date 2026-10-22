@@ -8,6 +8,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { Colors, Typography, Spacing, Radius, Shadows, MEASUREMENT_TYPES } from '@/constants/theme';
 import { useProfile } from '@/store/profileStore';
+import { useAuth } from '@/store/authStore';
 import { getAllMeasurements, getLatestByType } from '@/db/measurements';
 import { HealthMeasurement } from '@/types';
 import { LoadingState } from '@/components/ui/StateViews';
@@ -16,6 +17,7 @@ import { BackButton } from '@/components/ui/BackButton';
 
 export default function HealthScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
+  const { syncVersion } = useAuth();
   const [latest, setLatest] = useState<Record<string, HealthMeasurement>>({});
   const [history, setHistory] = useState<HealthMeasurement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ export default function HealthScreen() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
-  }, [loadData]);
+  }, [loadData, syncVersion]);
 
   useFocusEffect(useCallback(() => {
     loadData();

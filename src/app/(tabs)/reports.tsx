@@ -9,6 +9,7 @@ import { navigate } from '@/utils/navigation';
 
 import { Colors, Typography, Spacing, Radius, Shadows, REPORT_CATEGORIES } from '@/constants/theme';
 import { useProfile } from '@/store/profileStore';
+import { useAuth } from '@/store/authStore';
 import { getReportsByProfile } from '@/db/reports';
 import { MedicalReport } from '@/types';
 import { ReportCard } from '@/components/reports/ReportCard';
@@ -18,6 +19,7 @@ const FILTERS = [{ key: 'all', label: 'All', emoji: '📂' }, ...REPORT_CATEGORI
 
 export default function ReportsScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
+  const { syncVersion } = useAuth();
   const [reports, setReports] = useState<MedicalReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -38,7 +40,7 @@ export default function ReportsScreen() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadReports();
-  }, [loadReports]);
+  }, [loadReports, syncVersion]);
 
   useFocusEffect(useCallback(() => {
     loadReports();

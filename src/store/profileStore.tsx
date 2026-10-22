@@ -24,7 +24,7 @@ const ProfileContext = createContext<ProfileContextValue>({
 });
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, syncVersion } = useAuth();
   const prevUserRef = useRef(user);
   const [activeProfile, setActiveProfileState] = useState<Profile | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -85,7 +85,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     prevUserRef.current = user;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshProfiles();
-  }, [refreshProfiles, user]);
+  }, [refreshProfiles, user, syncVersion]);
 
   const setActiveProfile = useCallback((profile: Profile) => {
     setActiveProfileState(profile);

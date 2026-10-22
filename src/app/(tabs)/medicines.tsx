@@ -11,6 +11,7 @@ import { navigate } from '@/utils/navigation';
 
 import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useProfile } from '@/store/profileStore';
+import { useAuth } from '@/store/authStore';
 import { getMedicinesByProfile } from '@/db/medicines';
 import { Medicine } from '@/types';
 import { MedicineCard } from '@/components/medicine/MedicineCard';
@@ -18,6 +19,7 @@ import { EmptyState, LoadingState } from '@/components/ui/StateViews';
 
 export default function MedicinesScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
+  const { syncVersion } = useAuth();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -38,7 +40,7 @@ export default function MedicinesScreen() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMedicines();
-  }, [loadMedicines]);
+  }, [loadMedicines, syncVersion]);
 
   useFocusEffect(useCallback(() => {
     loadMedicines();

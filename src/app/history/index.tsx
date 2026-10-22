@@ -9,6 +9,7 @@ import { navigate } from '@/utils/navigation';
 
 import { Colors, Typography, Spacing, Radius, Shadows, REPORT_CATEGORIES, MEASUREMENT_TYPES } from '@/constants/theme';
 import { useProfile } from '@/store/profileStore';
+import { useAuth } from '@/store/authStore';
 import { getMedicinesByProfile } from '@/db/medicines';
 import { getReportsByProfile } from '@/db/reports';
 import { getAllMeasurements } from '@/db/measurements';
@@ -29,6 +30,7 @@ interface HistoryItem {
 
 export default function HistoryScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
+  const { syncVersion } = useAuth();
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'medicine' | 'report' | 'measurement'>('all');
@@ -76,7 +78,7 @@ export default function HistoryScreen() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
-  }, [loadData]);
+  }, [loadData, syncVersion]);
 
   useFocusEffect(useCallback(() => {
     loadData();
