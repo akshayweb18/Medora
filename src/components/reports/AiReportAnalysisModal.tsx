@@ -1,0 +1,620 @@
+/**
+ * AI Report Analysis Modal
+ * A premium, animated modal powered by Gemini 1.5 Flash.
+ * Shows analysis results, test values, warnings, medicines, and an AI Q&A section.
+ */
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+
+import { AiMedicineExtracted, AiReportAnalysis, AiTestResult, analyzeReportWithAI, askFollowUpQuestion } from '@/services/gemini';
+import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { MedicalReport } from '@/types';
+
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+interface Props {
+  visible: boolean;
+  onClose: () => void;
+  report: MedicalReport;
+  fileAvailable: boolean;
+}
+
+// ─── Chat Message ─────────────────────────────────────────────────────────────
+
+interface ChatMsg {
+  id: string;
+  role: 'user' | 'ai';
+  text: string;
+}
+
+// ─── Animated Thinking Dots ───────────────────────────────────────────────────
+
+function ThinkingDots() {
+  // Use useMemo so Animated.Values are stable across renders without useRef
+  const dot1 = React.useMemo(() => new Animated.Value(0), []);
+  const dot2 = React.useMemo(() => new Animated.Value(0), []);
+  const dot3 = React.useMemo(() => new Animated.Value(0), []);
+
+  useEffect(() => {
+    const animate = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: 1, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.delay(800 - delay),
+        ])
+      );
+    const a1 = animate(dot1, 0);
+    const a2 = animate(dot2, 250);
+    const a3 = animate(dot3, 500);
+    a1.start(); a2.start(); a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
+  }, [dot1, dot2, dot3]);
+
+  const dotStyle = (anim: Animated.Value) => ({
+    opacity: anim,
+    transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }],
+  });
+
+  return (
+    <View style={thinkStyle.row}>
+      {[dot1, dot2, dot3].map((d, i) => (
+        <Animated.View key={i} style={[thinkStyle.dot, dotStyle(d)]} />
+      ))}
+    </View>
+  );
+}
+
+const thinkStyle = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 5, alignItems: 'center', padding: 4 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' },
+});
+
+// ─── Status Badge ─────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: AiTestResult['status'] }) {
+  const cfg: Record<string, { bg: string; text: string; label: string }> = {
+    normal: { bg: '#16A34A18', text: '#16A34A', label: 'Normal' },
+    high:   { bg: '#DC262618', text: '#DC2626', label: '↑ High' },
+    low:    { bg: '#2563EB18', text: '#2563EB', label: '↓ Low' },
+    unknown: { bg: '#94A3B818', text: '#64748B', label: '?' },
+  };
+  const c = cfg[status] ?? cfg.unknown;
+  return (
+    <View style={[statusStyle.badge, { backgroundColor: c.bg }]}>
+      <Text style={[statusStyle.label, { color: c.text }]}>{c.label}</Text>
+    </View>
+  );
+}
+const statusStyle = StyleSheet.create({
+  badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.full },
+  label: { fontSize: Typography.xs, fontWeight: Typography.bold },
+});
+
+// ─── Section Header ───────────────────────────────────────────────────────────
+
+function SectionHeader({ emoji, title, color }: { emoji: string; title: string; color: string }) {
+  return (
+    <View style={secStyle.row}>
+      <View style={[secStyle.pill, { backgroundColor: color + '18' }]}>
+        <Text style={secStyle.emoji}>{emoji}</Text>
+      </View>
+      <Text style={[secStyle.title, { color }]}>{title}</Text>
+    </View>
+  );
+}
+const secStyle = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing[2], marginBottom: Spacing[2] },
+  pill: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  emoji: { fontSize: 18 },
+  title: { fontSize: Typography.base, fontWeight: Typography.bold },
+});
+
+// ─── Main Modal ───────────────────────────────────────────────────────────────
+
+export function AiReportAnalysisModal({ visible, onClose, report, fileAvailable }: Props) {
+  const [phase, setPhase] = useState<'idle' | 'loading' | 'result' | 'error'>('idle');
+  const [analysis, setAnalysis] = useState<AiReportAnalysis | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [chat, setChat] = useState<ChatMsg[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  // Store as stable Animated.Values via useMemo (no .current access during render)
+  const slideAnim = React.useMemo(() => new Animated.Value(80), []);
+  const fadeAnim = React.useMemo(() => new Animated.Value(0), []);
+  const pulseAnim = React.useMemo(() => new Animated.Value(1), []);
+
+  useEffect(() => {
+    if (phase === 'loading') {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.18, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ])
+      );
+      anim.start();
+      return () => anim.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+    return undefined;
+  }, [phase, pulseAnim]);
+
+  // Slide-in on result
+  useEffect(() => {
+    if (phase === 'result') {
+      Animated.parallel([
+        Animated.timing(slideAnim, { toValue: 0, duration: 450, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]).start();
+    } else {
+      slideAnim.setValue(80);
+      fadeAnim.setValue(0);
+    }
+  }, [phase, slideAnim, fadeAnim]);
+
+  const startAnalysis = useCallback(async () => {
+    if (!fileAvailable) {
+      setErrorMsg('The file is not available on this device. Please re-upload the report.');
+      setPhase('error');
+      return;
+    }
+    setPhase('loading');
+    setAnalysis(null);
+    setChat([]);
+    try {
+      const result = await analyzeReportWithAI(
+        report.filePath,
+        report.fileType,
+        report.title,
+        report.category,
+      );
+      setAnalysis(result);
+      setPhase('result');
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : 'Analysis failed. Please try again.');
+      setPhase('error');
+    }
+  }, [report, fileAvailable]);
+
+  // Auto-start when modal opens
+  useEffect(() => {
+    if (visible) {
+      const t = setTimeout(() => {
+        void startAnalysis();
+      }, 0);
+      return () => clearTimeout(t);
+    } else {
+      // Defer state resets so they don't run synchronously in the effect body
+      const t = setTimeout(() => {
+        setPhase('idle');
+        setAnalysis(null);
+        setChat([]);
+      }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [visible, startAnalysis]);
+
+  const handleAskQuestion = async () => {
+    if (!chatInput.trim() || !analysis) return;
+    const q = chatInput.trim();
+    setChatInput('');
+    const userMsg: ChatMsg = { id: Date.now().toString(), role: 'user', text: q };
+    setChat(prev => [...prev, userMsg]);
+    setChatLoading(true);
+    try {
+      const answer = await askFollowUpQuestion(q, analysis);
+      const aiMsg: ChatMsg = { id: (Date.now() + 1).toString(), role: 'ai', text: answer };
+      setChat(prev => [...prev, aiMsg]);
+    } catch {
+      const aiMsg: ChatMsg = { id: (Date.now() + 1).toString(), role: 'ai', text: 'Sorry, I could not process that question. Please try again.' };
+      setChat(prev => [...prev, aiMsg]);
+    } finally {
+      setChatLoading(false);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        {/* Gradient Header */}
+        <LinearGradient
+          colors={['#1A1A2E', '#16213E', '#0F3460']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <View style={styles.headerInner}>
+            <View>
+              <View style={styles.aiPill}>
+                <Text style={styles.aiPillText}>✨ Medora AI</Text>
+              </View>
+              <Text style={styles.headerTitle}>Report Analysis</Text>
+              <Text style={styles.headerSub} numberOfLines={1}>{report.title}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+              <Text style={styles.closeBtnText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+
+        {/* ─── Loading State ─── */}
+        {phase === 'loading' && (
+          <View style={styles.loadingContainer}>
+            <LinearGradient
+              colors={['#1A1A2E22', '#0F346022']}
+              style={styles.loadingGlow}
+            >
+              <Animated.Text style={[styles.brainEmoji, { transform: [{ scale: pulseAnim }] }]}>
+                🧠
+              </Animated.Text>
+            </LinearGradient>
+            <Text style={styles.loadingTitle}>Analyzing with AI…</Text>
+            <Text style={styles.loadingSubtitle}>
+              Gemini is reading your medical document, extracting data, and generating insights.
+            </Text>
+            <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: Spacing[4] }} />
+            <View style={styles.loadingSteps}>
+              {['📄 Reading document', '🔍 Extracting data', '🧬 Generating insights'].map((step, i) => (
+                <Text key={i} style={styles.loadingStep}>{step}</Text>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ─── Error State ─── */}
+        {phase === 'error' && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorEmoji}>⚠️</Text>
+            <Text style={styles.errorTitle}>Analysis Failed</Text>
+            <Text style={styles.errorMsg}>{errorMsg}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={startAnalysis}>
+              <Text style={styles.retryBtnText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ─── Result State ─── */}
+        {phase === 'result' && analysis && (
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
+            <ScrollView
+              ref={scrollRef}
+              style={{ flex: 1 }}
+              contentContainerStyle={styles.resultContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+
+                {/* Summary Card */}
+                <LinearGradient
+                  colors={['#1A1A2E', '#0F3460']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.summaryCard}
+                >
+                  <View style={styles.summaryHeader}>
+                    <View style={styles.reportTypePill}>
+                      <Text style={styles.reportTypeText}>{analysis.reportType}</Text>
+                    </View>
+                    {analysis.patientInfo?.doctorName && (
+                      <Text style={styles.doctorLabel}>Dr: {analysis.patientInfo.doctorName}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.summaryText}>{analysis.summary}</Text>
+                  {analysis.patientInfo && (
+                    <View style={styles.patientRow}>
+                      {analysis.patientInfo.name && <Text style={styles.patientChip}>👤 {analysis.patientInfo.name}</Text>}
+                      {analysis.patientInfo.age && <Text style={styles.patientChip}>🎂 {analysis.patientInfo.age}</Text>}
+                      {analysis.patientInfo.date && <Text style={styles.patientChip}>📅 {analysis.patientInfo.date}</Text>}
+                    </View>
+                  )}
+                </LinearGradient>
+
+                {/* Warnings */}
+                {analysis.warnings.length > 0 && (
+                  <View style={styles.section}>
+                    <SectionHeader emoji="⚠️" title="Warnings & Alerts" color="#DC2626" />
+                    {analysis.warnings.map((w, i) => (
+                      <View key={i} style={styles.warningRow}>
+                        <Text style={styles.warningDot}>●</Text>
+                        <Text style={styles.warningText}>{w}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Key Findings */}
+                {analysis.keyFindings.length > 0 && (
+                  <View style={styles.section}>
+                    <SectionHeader emoji="🔍" title="Key Findings" color={Colors.primary} />
+                    {analysis.keyFindings.map((f, i) => (
+                      <View key={i} style={styles.findingRow}>
+                        <View style={styles.findingBullet} />
+                        <Text style={styles.findingText}>{f}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Test Results Table */}
+                {(analysis.testResults?.length ?? 0) > 0 && (
+                  <View style={styles.section}>
+                    <SectionHeader emoji="🩺" title="Test Results" color={Colors.secondary} />
+                    <View style={styles.testTable}>
+                      <View style={styles.testTableHeader}>
+                        <Text style={[styles.testCol, { flex: 2 }]}>Test</Text>
+                        <Text style={[styles.testCol, { flex: 1, textAlign: 'center' }]}>Value</Text>
+                        <Text style={[styles.testCol, { flex: 1.2, textAlign: 'center' }]}>Normal</Text>
+                        <Text style={[styles.testCol, { flex: 0.9, textAlign: 'right' }]}>Status</Text>
+                      </View>
+                      {analysis.testResults!.map((tr, i) => (
+                        <View key={i} style={[styles.testRow, i % 2 === 0 && styles.testRowAlt]}>
+                          <Text style={[styles.testName, { flex: 2 }]} numberOfLines={2}>{tr.name}</Text>
+                          <Text style={[styles.testValue, { flex: 1, textAlign: 'center' }]}>
+                            {tr.value}{tr.unit ? ` ${tr.unit}` : ''}
+                          </Text>
+                          <Text style={[styles.testNormal, { flex: 1.2, textAlign: 'center' }]}>{tr.normalRange ?? '—'}</Text>
+                          <View style={{ flex: 0.9, alignItems: 'flex-end' }}>
+                            <StatusBadge status={tr.status} />
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Extracted Medicines */}
+                {(analysis.medicines?.length ?? 0) > 0 && (
+                  <View style={styles.section}>
+                    <SectionHeader emoji="💊" title="Prescribed Medicines" color="#9B51E0" />
+                    {analysis.medicines!.map((med: AiMedicineExtracted, i: number) => (
+                      <View key={i} style={styles.medCard}>
+                        <View style={styles.medCardHeader}>
+                          <Text style={styles.medName}>{med.name}</Text>
+                          {med.strength && (
+                            <View style={styles.medStrengthPill}>
+                              <Text style={styles.medStrengthText}>{med.strength}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.medDetails}>
+                          {med.dosage && <Text style={styles.medDetail}>💊 {med.dosage}</Text>}
+                          {med.frequency && <Text style={styles.medDetail}>🔄 {med.frequency}</Text>}
+                          {med.duration && <Text style={styles.medDetail}>⏱ {med.duration}</Text>}
+                          {med.notes && <Text style={[styles.medDetail, { color: Colors.accent }]}>📝 {med.notes}</Text>}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Recommendations */}
+                {analysis.recommendations.length > 0 && (
+                  <View style={styles.section}>
+                    <SectionHeader emoji="✅" title="Recommendations" color={Colors.success} />
+                    {analysis.recommendations.map((r, i) => (
+                      <View key={i} style={styles.recommendRow}>
+                        <Text style={styles.recommendNum}>{i + 1}</Text>
+                        <Text style={styles.recommendText}>{r}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* AI Disclaimer */}
+                <View style={styles.disclaimerBox}>
+                  <Text style={styles.disclaimerIcon}>🤖</Text>
+                  <Text style={styles.disclaimerText}>
+                    This analysis is generated by Medora AI (Gemini 1.5 Flash) and is for informational purposes only.
+                    Always consult your doctor or healthcare provider for medical decisions.
+                  </Text>
+                </View>
+
+                {/* ─── AI Chat Q&A ─── */}
+                <View style={styles.chatSection}>
+                  <LinearGradient
+                    colors={['#1A1A2E', '#0F3460']}
+                    style={styles.chatHeader}
+                  >
+                    <Text style={styles.chatHeaderEmoji}>💬</Text>
+                    <View>
+                      <Text style={styles.chatHeaderTitle}>Ask Medora AI</Text>
+                      <Text style={styles.chatHeaderSub}>Ask anything about this report</Text>
+                    </View>
+                  </LinearGradient>
+
+                  {/* Chat messages */}
+                  {chat.map(msg => (
+                    <View key={msg.id} style={[styles.chatBubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
+                      {msg.role === 'ai' && <Text style={styles.chatAiLabel}>🧠 Medora AI</Text>}
+                      <Text style={[styles.chatText, msg.role === 'user' ? styles.userText : styles.aiText]}>{msg.text}</Text>
+                    </View>
+                  ))}
+
+                  {chatLoading && (
+                    <View style={[styles.chatBubble, styles.aiBubble]}>
+                      <Text style={styles.chatAiLabel}>🧠 Medora AI</Text>
+                      <ThinkingDots />
+                    </View>
+                  )}
+
+                  {/* Suggested questions */}
+                  {chat.length === 0 && (
+                    <View style={styles.suggestedRow}>
+                      {['What do my results mean?', 'Is anything critical?', 'What should I do next?'].map(q => (
+                        <TouchableOpacity
+                          key={q}
+                          style={styles.suggestedChip}
+                          onPress={() => { setChatInput(q); }}
+                        >
+                          <Text style={styles.suggestedText}>{q}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Input */}
+                  <View style={styles.chatInputRow}>
+                    <TextInput
+                      style={styles.chatInput}
+                      value={chatInput}
+                      onChangeText={setChatInput}
+                      placeholder="Ask about this report…"
+                      placeholderTextColor={Colors.textSecondary}
+                      onSubmitEditing={handleAskQuestion}
+                      returnKeyType="send"
+                      multiline={false}
+                    />
+                    <TouchableOpacity
+                      style={[styles.sendBtn, (!chatInput.trim() || chatLoading) && styles.sendBtnDisabled]}
+                      onPress={handleAskQuestion}
+                      disabled={!chatInput.trim() || chatLoading}
+                    >
+                      <LinearGradient colors={['#2D9CDB', '#1A7AB5']} style={styles.sendBtnGradient}>
+                        <Text style={styles.sendBtnText}>➤</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={{ height: 40 }} />
+              </Animated.View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.background },
+
+  // Header
+  header: { paddingTop: Spacing[2], paddingBottom: Spacing[4] },
+  headerInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: Spacing[4] },
+  aiPill: { backgroundColor: '#ffffff22', paddingHorizontal: Spacing[2], paddingVertical: 3, borderRadius: Radius.full, alignSelf: 'flex-start', marginBottom: 6 },
+  aiPillText: { color: '#fff', fontSize: Typography.xs, fontWeight: Typography.semibold },
+  headerTitle: { color: '#fff', fontSize: Typography['2xl'], fontWeight: Typography.extrabold },
+  headerSub: { color: '#ffffffaa', fontSize: Typography.sm, marginTop: 2 },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#ffffff20', alignItems: 'center', justifyContent: 'center' },
+  closeBtnText: { color: '#fff', fontSize: Typography.base, fontWeight: Typography.bold },
+
+  // Loading
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing[6] },
+  loadingGlow: { width: 120, height: 120, borderRadius: 60, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing[6] },
+  brainEmoji: { fontSize: 64 },
+  loadingTitle: { fontSize: Typography.xl, fontWeight: Typography.extrabold, color: Colors.textPrimary, textAlign: 'center' },
+  loadingSubtitle: { fontSize: Typography.sm, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing[2], lineHeight: 20 },
+  loadingSteps: { marginTop: Spacing[6], gap: Spacing[2] },
+  loadingStep: { fontSize: Typography.sm, color: Colors.textSecondary, textAlign: 'center' },
+
+  // Error
+  errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing[6] },
+  errorEmoji: { fontSize: 56, marginBottom: Spacing[4] },
+  errorTitle: { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.textPrimary, marginBottom: Spacing[2] },
+  errorMsg: { fontSize: Typography.sm, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  retryBtn: { marginTop: Spacing[6], backgroundColor: Colors.primary, paddingHorizontal: Spacing[6], paddingVertical: Spacing[3], borderRadius: Radius.full },
+  retryBtnText: { color: '#fff', fontWeight: Typography.bold, fontSize: Typography.base },
+
+  // Result
+  resultContent: { padding: Spacing[4], gap: Spacing[4] },
+
+  // Summary Card
+  summaryCard: { borderRadius: Radius.xl, padding: Spacing[4], gap: Spacing[3], ...Shadows.md },
+  summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reportTypePill: { backgroundColor: '#ffffff22', paddingHorizontal: Spacing[3], paddingVertical: 4, borderRadius: Radius.full },
+  reportTypeText: { color: '#fff', fontSize: Typography.sm, fontWeight: Typography.semibold },
+  doctorLabel: { color: '#ffffffaa', fontSize: Typography.xs },
+  summaryText: { color: '#fff', fontSize: Typography.base, lineHeight: 22, fontWeight: Typography.regular },
+  patientRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing[2] },
+  patientChip: { backgroundColor: '#ffffff18', color: '#ffffffcc', fontSize: Typography.xs, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full },
+
+  // Sections
+  section: { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing[4], ...Shadows.sm, borderWidth: 1, borderColor: Colors.border },
+
+  // Warnings
+  warningRow: { flexDirection: 'row', gap: Spacing[2], alignItems: 'flex-start', marginBottom: Spacing[2] },
+  warningDot: { color: '#DC2626', fontSize: 10, marginTop: 4 },
+  warningText: { flex: 1, fontSize: Typography.sm, color: '#DC2626', lineHeight: 20 },
+
+  // Key Findings
+  findingRow: { flexDirection: 'row', gap: Spacing[2], alignItems: 'flex-start', marginBottom: Spacing[2] },
+  findingBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.primary, marginTop: 7 },
+  findingText: { flex: 1, fontSize: Typography.sm, color: Colors.textPrimary, lineHeight: 20 },
+
+  // Test Table
+  testTable: { gap: 2 },
+  testTableHeader: { flexDirection: 'row', paddingBottom: Spacing[2], borderBottomWidth: 1, borderBottomColor: Colors.border },
+  testCol: { fontSize: Typography.xs, fontWeight: Typography.bold, color: Colors.textSecondary, textTransform: 'uppercase' },
+  testRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing[2] },
+  testRowAlt: { backgroundColor: Colors.gray50, borderRadius: Radius.sm },
+  testName: { fontSize: Typography.sm, color: Colors.textPrimary, fontWeight: Typography.medium },
+  testValue: { fontSize: Typography.sm, color: Colors.textPrimary, fontWeight: Typography.semibold },
+  testNormal: { fontSize: Typography.xs, color: Colors.textSecondary },
+
+  // Medicines
+  medCard: { backgroundColor: Colors.gray50, borderRadius: Radius.lg, padding: Spacing[3], marginBottom: Spacing[2], borderWidth: 1, borderColor: '#9B51E020' },
+  medCardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing[2], marginBottom: Spacing[2] },
+  medName: { fontSize: Typography.md, fontWeight: Typography.bold, color: Colors.textPrimary, flex: 1 },
+  medStrengthPill: { backgroundColor: '#9B51E018', paddingHorizontal: 10, paddingVertical: 2, borderRadius: Radius.full },
+  medStrengthText: { fontSize: Typography.xs, color: '#9B51E0', fontWeight: Typography.semibold },
+  medDetails: { gap: 4 },
+  medDetail: { fontSize: Typography.sm, color: Colors.textSecondary },
+
+  // Recommendations
+  recommendRow: { flexDirection: 'row', gap: Spacing[3], alignItems: 'flex-start', marginBottom: Spacing[2] },
+  recommendNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.successLight, color: Colors.success, fontSize: Typography.xs, fontWeight: Typography.bold, textAlign: 'center', lineHeight: 24 },
+  recommendText: { flex: 1, fontSize: Typography.sm, color: Colors.textPrimary, lineHeight: 20 },
+
+  // Disclaimer
+  disclaimerBox: { flexDirection: 'row', backgroundColor: Colors.accentLight, borderRadius: Radius.lg, padding: Spacing[3], gap: Spacing[2], alignItems: 'flex-start' },
+  disclaimerIcon: { fontSize: 20 },
+  disclaimerText: { flex: 1, fontSize: Typography.xs, color: Colors.textSecondary, lineHeight: 18 },
+
+  // Chat
+  chatSection: { gap: Spacing[3] },
+  chatHeader: { borderRadius: Radius.xl, padding: Spacing[4], flexDirection: 'row', alignItems: 'center', gap: Spacing[3] },
+  chatHeaderEmoji: { fontSize: 36 },
+  chatHeaderTitle: { color: '#fff', fontSize: Typography.lg, fontWeight: Typography.bold },
+  chatHeaderSub: { color: '#ffffffaa', fontSize: Typography.xs },
+
+  chatBubble: { borderRadius: Radius.xl, padding: Spacing[3], maxWidth: '90%', ...Shadows.sm },
+  userBubble: { backgroundColor: Colors.primary, alignSelf: 'flex-end', borderBottomRightRadius: 4 },
+  aiBubble: { backgroundColor: Colors.surface, alignSelf: 'flex-start', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: Colors.border },
+  chatAiLabel: { fontSize: Typography.xs, color: Colors.primary, fontWeight: Typography.semibold, marginBottom: 4 },
+  chatText: { fontSize: Typography.sm, lineHeight: 20 },
+  userText: { color: '#fff' },
+  aiText: { color: Colors.textPrimary },
+
+  suggestedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing[2] },
+  suggestedChip: { backgroundColor: Colors.primaryLight, paddingHorizontal: Spacing[3], paddingVertical: Spacing[2], borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.primary + '40' },
+  suggestedText: { fontSize: Typography.xs, color: Colors.primary, fontWeight: Typography.medium },
+
+  chatInputRow: { flexDirection: 'row', gap: Spacing[2], alignItems: 'center' },
+  chatInput: { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.full, paddingHorizontal: Spacing[4], paddingVertical: Spacing[3], fontSize: Typography.sm, color: Colors.textPrimary, borderWidth: 1.5, borderColor: Colors.border },
+  sendBtn: { borderRadius: 24 },
+  sendBtnDisabled: { opacity: 0.5 },
+  sendBtnGradient: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  sendBtnText: { color: '#fff', fontSize: Typography.base, fontWeight: Typography.bold },
+});

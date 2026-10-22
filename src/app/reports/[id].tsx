@@ -1,10 +1,11 @@
 /**
- * Report Detail Screen — shows metadata, file preview/share options.
+ * Report Detail Screen — shows metadata, file preview/share options, and AI analysis.
  */
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { Colors, Radius, REPORT_CATEGORIES, Shadows, Spacing, Typography } from '@/constants/theme';
@@ -15,6 +16,7 @@ import { formatDate, formatFileSize } from '@/utils/date';
 import { confirmAction } from '@/utils/confirm';
 import { ShareReportModal } from '@/components/reports/ShareReportModal';
 import { BackButton } from '@/components/ui/BackButton';
+import { AiReportAnalysisModal } from '@/components/reports/AiReportAnalysisModal';
 
 export default function ReportDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,6 +24,7 @@ export default function ReportDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [fileAvailable, setFileAvailable] = useState(true);
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [aiModalVisible, setAiModalVisible] = useState(false);
 
   useFocusEffect(useCallback(() => {
     if (!id) return;
@@ -132,6 +135,27 @@ export default function ReportDetailScreen() {
 
         {/* Actions */}
         <View style={styles.actions}>
+          {/* AI Analyze Button */}
+          <TouchableOpacity
+            style={styles.aiBtn}
+            onPress={() => setAiModalVisible(true)}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={['#1A1A2E', '#0F3460', '#16213E']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.aiBtnGradient}
+            >
+              <Text style={styles.aiBtnEmoji}>✨</Text>
+              <View style={styles.aiBtnTextGroup}>
+                <Text style={styles.aiBtnTitle}>Analyze with Medora AI</Text>
+                <Text style={styles.aiBtnSub}>Gemini 1.5 Flash • Instant insights</Text>
+              </View>
+              <Text style={styles.aiBtnArrow}>›</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={handleShare}
@@ -150,6 +174,14 @@ export default function ReportDetailScreen() {
         <ShareReportModal
           visible={shareModalVisible}
           onClose={() => setShareModalVisible(false)}
+          report={report}
+          fileAvailable={fileAvailable}
+        />
+      )}
+      {report && (
+        <AiReportAnalysisModal
+          visible={aiModalVisible}
+          onClose={() => setAiModalVisible(false)}
           report={report}
           fileAvailable={fileAvailable}
         />
@@ -191,4 +223,13 @@ const styles = StyleSheet.create({
   actionBtnDisabled: { opacity: 0.5 },
   deleteBtn: { borderColor: Colors.dangerLight, backgroundColor: Colors.dangerLight },
   actionBtnText: { fontSize: Typography.base, fontWeight: Typography.semibold, color: Colors.textPrimary },
+
+  // AI Button
+  aiBtn: { borderRadius: Radius.xl, overflow: 'hidden', ...Shadows.lg },
+  aiBtnGradient: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing[4], paddingVertical: Spacing[4], gap: Spacing[3] },
+  aiBtnEmoji: { fontSize: 28 },
+  aiBtnTextGroup: { flex: 1 },
+  aiBtnTitle: { color: '#fff', fontSize: Typography.md, fontWeight: Typography.bold },
+  aiBtnSub: { color: '#ffffff88', fontSize: Typography.xs, marginTop: 2 },
+  aiBtnArrow: { color: '#ffffff66', fontSize: 28, fontWeight: Typography.regular },
 });
