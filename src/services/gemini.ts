@@ -3,6 +3,8 @@
  * Analyzes medical reports, prescriptions, and lab results from images or PDFs.
  */
 
+import { Platform } from 'react-native';
+
 const CANDIDATE_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest'];
 
 function getGeminiApiUrl(model: string = CANDIDATE_MODELS[0]): string {
@@ -50,11 +52,45 @@ export interface AiReportAnalysis {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function uriToBase64(fileUri: string): Promise<string> {
-  const FileSystem = await import('expo-file-system');
-  const base64 = await FileSystem.readAsStringAsync(fileUri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  return base64;
+  // If already a base64 data URI
+  if (fileUri.startsWith('data:')) {
+    const commaIdx = fileUri.indexOf(',');
+    return commaIdx !== -1 ? fileUri.slice(commaIdx + 1) : fileUri;
+  }
+
+  // Web environment / Blob URL / Remote URL
+  if (Platform.OS === 'web' || fileUri.startsWith('blob:') || fileUri.startsWith('http://') || fileUri.startsWith('https://')) {
+    const res = await fetch(fileUri);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const commaIdx = result.indexOf(',');
+        resolve(commaIdx !== -1 ? result.slice(commaIdx + 1) : result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // Native environment — use expo-file-system/legacy per Expo SDK 54+ requirement
+  try {
+    const LegacyFileSystem = await import('expo-file-system/legacy');
+    const base64 = await LegacyFileSystem.readAsStringAsync(fileUri, {
+      encoding: LegacyFileSystem.EncodingType.Base64,
+    });
+    return base64;
+  } catch (err) {
+    console.warn('LegacyFileSystem read failed, attempting File API fallback:', err);
+    // Secondary fallback using File class
+    const { File } = await import('expo-file-system');
+    const file = new File(fileUri);
+    if (typeof (file as unknown as { base64: () => Promise<string> }).base64 === 'function') {
+      return await (file as unknown as { base64: () => Promise<string> }).base64();
+    }
+    throw err;
+  }
 }
 
 function getMimeType(filePath: string, fileType: 'pdf' | 'image'): string {
