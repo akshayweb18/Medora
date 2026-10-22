@@ -196,7 +196,7 @@ export default function HomeScreen() {
           >
             <View style={styles.aiHeroLeft}>
               <View style={styles.aiHeroBadge}>
-                <Text style={styles.aiHeroBadgeText}>✨ Google Gemini 1.5</Text>
+                <Text style={styles.aiHeroBadgeText}>✨ Google Gemini 3.8</Text>
               </View>
               <Text style={styles.aiHeroTitle}>Medora AI Health Assistant</Text>
               <Text style={styles.aiHeroSub}>

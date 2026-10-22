@@ -72,7 +72,7 @@ export default function ReportsScreen() {
           <Text style={styles.aiBannerEmoji}>✨</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.aiBannerTitle}>Analyze Reports with Medora AI</Text>
-            <Text style={styles.aiBannerSub}>Powered by Gemini 1.5 Flash • Instant plain-English insights</Text>
+            <Text style={styles.aiBannerSub}>Powered by Gemini 3.8 Flash • Instant plain-English insights</Text>
           </View>
           <View style={styles.aiBannerBtn}>
             <Text style={styles.aiBannerBtnText}>Try AI ›</Text>

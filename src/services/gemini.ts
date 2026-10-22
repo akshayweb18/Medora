@@ -1,9 +1,9 @@
 /**
- * Gemini 1.5 Flash — Medical AI Service
+ * Gemini 3.8 Flash — Medical AI Service
  * Analyzes medical reports, prescriptions, and lab results from images or PDFs.
  */
 
-const CANDIDATE_MODELS = ['gemini-flash-latest', 'gemini-3.8-flash'];
+const CANDIDATE_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest'];
 
 function getGeminiApiUrl(model: string = CANDIDATE_MODELS[0]): string {
   const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';

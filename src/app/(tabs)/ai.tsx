@@ -60,7 +60,7 @@ export default function AiHubScreen() {
     {
       id: 'welcome',
       role: 'ai',
-      text: 'Hello! I am Medora AI, your personal health assistant powered by Google Gemini 1.5 Flash. You can ask me any questions about medications, symptoms, lab test results, or general wellness. How can I help you today?',
+      text: 'Hello! I am Medora AI, your personal health assistant powered by Google Gemini 3.8 Flash. You can ask me any questions about medications, symptoms, lab test results, or general wellness. How can I help you today?',
       time: 'Just now',
     },
   ]);
@@ -166,7 +166,7 @@ export default function AiHubScreen() {
           </View>
           <View style={styles.modelPill}>
             <View style={styles.onlineDot} />
-            <Text style={styles.modelText}>Gemini 1.5 Flash</Text>
+            <Text style={styles.modelText}>Gemini 3.8 Flash</Text>
           </View>
         </View>
         <Text style={styles.heroTitle}>Health & Report AI</Text>
@@ -345,7 +345,7 @@ export default function AiHubScreen() {
               <Text style={styles.emptyReportsEmoji}>📋</Text>
               <Text style={styles.emptyReportsTitle}>No Reports Added Yet</Text>
               <Text style={styles.emptyReportsText}>
-                Upload a blood test, prescription, or medical scan to analyze it with Gemini 1.5 Flash.
+                Upload a blood test, prescription, or medical scan to analyze it with Gemini 3.8 Flash.
               </Text>
               <TouchableOpacity
                 style={styles.emptyUploadBtn}
