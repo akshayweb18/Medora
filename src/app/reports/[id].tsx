@@ -14,6 +14,7 @@ import { MedicalReport } from '@/types';
 import { formatDate, formatFileSize } from '@/utils/date';
 import { confirmAction } from '@/utils/confirm';
 import { ShareReportModal } from '@/components/reports/ShareReportModal';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default function ReportDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -67,9 +68,7 @@ export default function ReportDetailScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleBack} />
         <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
           <Text style={styles.shareBtnText}>Share</Text>
         </TouchableOpacity>
@@ -134,9 +133,8 @@ export default function ReportDetailScreen() {
         {/* Actions */}
         <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.actionBtn, !fileAvailable && styles.actionBtnDisabled]}
+            style={styles.actionBtn}
             onPress={handleShare}
-            disabled={!fileAvailable}
           >
             <Text style={styles.actionBtnText}>📤 Share Report</Text>
           </TouchableOpacity>
@@ -153,6 +151,7 @@ export default function ReportDetailScreen() {
           visible={shareModalVisible}
           onClose={() => setShareModalVisible(false)}
           report={report}
+          fileAvailable={fileAvailable}
         />
       )}
     </SafeAreaView>

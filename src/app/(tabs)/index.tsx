@@ -114,11 +114,14 @@ export default function HomeScreen() {
   const upcomingDoses = todayDoses.filter(d => !d.log || d.log.status === 'upcoming' || d.log.status === 'snoozed');
   const nextDose = upcomingDoses.find(d => new Date(d.scheduledFor) > new Date());
 
-  const avatarUri = activeProfile?.avatarUri || user?.photoURL;
-  const greetingName = activeProfile?.name && activeProfile.name !== 'Me'
-    ? activeProfile.name
-    : (user?.displayName || activeProfile?.name || 'there');
-  const avatarInitial = (greetingName || user?.email || 'M')[0].toUpperCase();
+  const isDefaultProfile = !activeProfile || activeProfile.isDefault || activeProfile.relationship === 'self';
+  const avatarUri = isDefaultProfile
+    ? (user ? (user.photoURL || activeProfile?.avatarUri) : undefined)
+    : activeProfile?.avatarUri;
+  const greetingName = isDefaultProfile
+    ? (user ? (user.displayName || (activeProfile?.name !== 'Me' ? activeProfile?.name : 'there')) : 'there')
+    : activeProfile?.name ?? 'there';
+  const avatarInitial = (greetingName || 'M')[0].toUpperCase();
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -136,9 +139,9 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.profileAvatar}
-            onPress={() => navigate('/family')}
+            onPress={() => navigate('/(tabs)/profile')}
             activeOpacity={0.8}
-            accessibilityLabel="Profile and Family"
+            accessibilityLabel="Profile and Account"
           >
             {avatarUri && !imageError ? (
               <Image

@@ -21,9 +21,10 @@ interface ShareReportModalProps {
   visible: boolean;
   onClose: () => void;
   report: MedicalReport;
+  fileAvailable?: boolean;
 }
 
-export function ShareReportModal({ visible, onClose, report }: ShareReportModalProps) {
+export function ShareReportModal({ visible, onClose, report, fileAvailable = true }: ShareReportModalProps) {
   const [copied, setCopied] = useState(false);
   const cat = REPORT_CATEGORIES.find(c => c.key === report.category);
 
@@ -151,6 +152,7 @@ export function ShareReportModal({ visible, onClose, report }: ShareReportModalP
       bgColor: '#E8F5E9',
       borderColor: '#A5D6A7',
       onPress: handleWhatsAppShare,
+      enabled: true,
     },
     {
       id: 'email',
@@ -160,6 +162,7 @@ export function ShareReportModal({ visible, onClose, report }: ShareReportModalP
       bgColor: '#E3F2FD',
       borderColor: '#90CAF9',
       onPress: handleEmailShare,
+      enabled: true,
     },
     {
       id: 'copy',
@@ -169,24 +172,31 @@ export function ShareReportModal({ visible, onClose, report }: ShareReportModalP
       bgColor: copied ? '#E8F5E9' : '#FFF3E0',
       borderColor: copied ? '#81C784' : '#FFE0B2',
       onPress: handleCopy,
+      enabled: true,
     },
     {
       id: 'download',
       title: 'Download File',
-      subtitle: `Save ${report.fileType.toUpperCase()} file to your device`,
+      subtitle: fileAvailable
+        ? `Save ${report.fileType.toUpperCase()} file to your device`
+        : 'File not available on this device',
       emoji: '📥',
-      bgColor: '#EDE7F6',
-      borderColor: '#D1C4E9',
+      bgColor: fileAvailable ? '#EDE7F6' : '#F5F5F5',
+      borderColor: fileAvailable ? '#D1C4E9' : '#E0E0E0',
       onPress: handleDownload,
+      enabled: fileAvailable,
     },
     {
       id: 'system',
       title: 'More Apps & AirDrop',
-      subtitle: 'Use system share sheet for other apps',
+      subtitle: fileAvailable
+        ? 'Use system share sheet for other apps'
+        : 'File not available — text share only',
       emoji: '📤',
       bgColor: '#F5F5F5',
       borderColor: '#E0E0E0',
       onPress: handleSystemShare,
+      enabled: true,
     },
   ];
 
@@ -238,18 +248,22 @@ export function ShareReportModal({ visible, onClose, report }: ShareReportModalP
                 {shareOptions.map(opt => (
                   <TouchableOpacity
                     key={opt.id}
-                    style={[styles.optionRow, { backgroundColor: opt.bgColor, borderColor: opt.borderColor }]}
-                    onPress={opt.onPress}
-                    activeOpacity={0.7}
+                    style={[
+                      styles.optionRow,
+                      { backgroundColor: opt.bgColor, borderColor: opt.borderColor },
+                      !opt.enabled && styles.optionRowDisabled,
+                    ]}
+                    onPress={opt.enabled ? opt.onPress : undefined}
+                    activeOpacity={opt.enabled ? 0.7 : 1}
                   >
                     <View style={styles.optionEmojiBox}>
                       <Text style={styles.optionEmoji}>{opt.emoji}</Text>
                     </View>
                     <View style={styles.optionInfo}>
-                      <Text style={styles.optionTitle}>{opt.title}</Text>
+                      <Text style={[styles.optionTitle, !opt.enabled && { color: Colors.textDisabled }]}>{opt.title}</Text>
                       <Text style={styles.optionSub}>{opt.subtitle}</Text>
                     </View>
-                    <Text style={styles.optionArrow}>›</Text>
+                    {opt.enabled && <Text style={styles.optionArrow}>›</Text>}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -370,6 +384,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: Spacing[2],
     gap: Spacing[3],
+  },
+  optionRowDisabled: {
+    opacity: 0.5,
   },
   optionEmojiBox: {
     width: 40,

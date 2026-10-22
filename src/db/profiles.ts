@@ -154,3 +154,20 @@ export async function syncProfileWithAuthUser(user: {
   }
 }
 
+export async function resetProfileOnLogout(): Promise<void> {
+  try {
+    const defaultP = await getDefaultProfile();
+    if (!defaultP) return;
+    const db = await getDatabase();
+    const now = nowISO();
+    // Directly wipe avatar/name via SQL so NULL can be stored without type coercion issues
+    await db.runAsync(
+      'UPDATE profiles SET name = ?, avatar_uri = NULL, updated_at = ? WHERE id = ?',
+      ['Me', now, defaultP.id]
+    );
+  } catch (err) {
+    console.warn('[Profiles] Failed to reset profile on logout:', err);
+  }
+}
+
+

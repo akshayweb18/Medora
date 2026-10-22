@@ -7,15 +7,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { LogBox, StyleSheet } from 'react-native';
-
-// Suppress the known Expo Go limitation warning for expo-notifications.
-// The actual message in expo-notifications/build/index.js starts with a backtick:
-//   `expo-notifications` functionality is not fully supported in Expo Go
-// The module degrades gracefully — this is purely informational noise.
-LogBox.ignoreLogs([
-  '`expo-notifications` functionality is not fully supported in Expo Go',
-]);
+import { LogBox, StyleSheet, Platform } from 'react-native';
 
 import { AuthProvider } from '@/store/authStore';
 import { ProfileProvider } from '@/store/profileStore';
@@ -24,10 +16,36 @@ import { setupNotificationChannel } from '@/services/notifications';
 import { syncAllLocalDataToCloud } from '@/services/cloudSync';
 import { Colors } from '@/constants/theme';
 
+// Suppress the known Expo Go limitation warning for expo-notifications.
+LogBox.ignoreLogs([
+  '`expo-notifications` functionality is not fully supported in Expo Go',
+]);
+
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   useEffect(() => {
+    // Inject global web input reset to eliminate native browser black border and focus rings
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const styleId = 'medora-web-input-reset';
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+          input, textarea, select {
+            outline: none !important;
+            box-shadow: none !important;
+            -webkit-tap-highlight-color: transparent !important;
+          }
+          input:focus, textarea:focus, select:focus {
+            outline: none !important;
+            box-shadow: none !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }
+
     async function init() {
       const splashTimeout = setTimeout(() => {
         SplashScreen.hideAsync().catch(() => {});

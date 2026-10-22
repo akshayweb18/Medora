@@ -19,11 +19,21 @@ export default function ProfileScreen() {
   const { activeProfile, setActiveProfile } = useProfile();
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
-  const avatarUri = activeProfile?.avatarUri || user?.photoURL;
-  const profileName = activeProfile?.name && activeProfile.name !== 'Me'
-    ? activeProfile.name
-    : (user?.displayName || activeProfile?.name || 'Me');
-  const avatarInitial = (profileName || user?.email || 'M')[0].toUpperCase();
+  const isDefaultProfile = !activeProfile || activeProfile.isDefault || activeProfile.relationship === 'self';
+
+  const avatarUri = isDefaultProfile
+    ? (user ? (user.photoURL || activeProfile?.avatarUri) : undefined)
+    : activeProfile?.avatarUri;
+
+  const profileName = isDefaultProfile
+    ? (user ? (user.displayName || (activeProfile?.name !== 'Me' ? activeProfile?.name : undefined) || 'Me') : 'Guest Profile')
+    : (activeProfile?.name ?? 'Profile');
+
+  const avatarInitial = (user ? (profileName || user.email || 'M') : 'G')[0].toUpperCase();
+
+  const profileSubtitle = isDefaultProfile
+    ? (user ? (user.email ?? 'Primary Account') : 'Local Storage • Not Signed In')
+    : (activeProfile?.relationship ? (activeProfile.relationship.charAt(0).toUpperCase() + activeProfile.relationship.slice(1)) : 'Family Member');
 
   useFocusEffect(useCallback(() => {
     getAllProfiles().then(setProfiles).catch(console.error);
@@ -104,7 +114,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{profileName}</Text>
-            <Text style={styles.profileRelation}>{activeProfile?.relationship ?? 'self'}</Text>
+            <Text style={styles.profileRelation}>{profileSubtitle}</Text>
             {activeProfile?.bloodGroup && (
               <Text style={styles.profileMeta}>🩸 {activeProfile.bloodGroup}</Text>
             )}
@@ -265,7 +275,7 @@ const styles = StyleSheet.create({
   avatarText: { color: Colors.white, fontSize: Typography['2xl'], fontWeight: Typography.bold },
   profileInfo: { flex: 1 },
   profileName: { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.textPrimary },
-  profileRelation: { fontSize: Typography.sm, color: Colors.textSecondary, marginTop: 2, textTransform: 'capitalize' },
+  profileRelation: { fontSize: Typography.sm, color: Colors.textSecondary, marginTop: 2 },
   profileMeta: { fontSize: Typography.sm, color: Colors.textSecondary, marginTop: 2 },
   editBtn: { paddingHorizontal: Spacing[3], paddingVertical: Spacing[2], borderRadius: Radius.md, backgroundColor: Colors.primaryLight },
   editBtnText: { color: Colors.primary, fontSize: Typography.sm, fontWeight: Typography.semibold },

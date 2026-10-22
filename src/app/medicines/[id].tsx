@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingState, ErrorState } from '@/components/ui/StateViews';
 import { formatDate, formatTime, relativeDate } from '@/utils/date';
 import { confirmAction } from '@/utils/confirm';
+import { BackButton } from '@/components/ui/BackButton';
 
 const STATUS_COLORS: Record<string, string> = {
   taken: Colors.success, skipped: Colors.gray400,
@@ -86,9 +87,7 @@ export default function MedicineDetailScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: medicine.color }]}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleBack} />
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.editBtn}

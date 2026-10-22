@@ -15,6 +15,7 @@ import {
   getAuthErrorMessage,
 } from '@/services/auth';
 import { syncAllLocalDataToCloud } from '@/services/cloudSync';
+import { resetProfileOnLogout } from '@/db/profiles';
 
 interface AuthContextValue {
   user: User | null;
@@ -136,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await signOutUser();
+      await resetProfileOnLogout();
       setUser(null);
       setIsGuest(false);
       await setStoredGuestMode(false);

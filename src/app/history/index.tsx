@@ -14,6 +14,7 @@ import { getReportsByProfile } from '@/db/reports';
 import { getAllMeasurements } from '@/db/measurements';
 import { LoadingState } from '@/components/ui/StateViews';
 import { formatDate } from '@/utils/date';
+import { BackButton } from '@/components/ui/BackButton';
 
 interface HistoryItem {
   id: string;
@@ -101,11 +102,9 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleBack} />
         <Text style={styles.title}>Medical History</Text>
-        <View style={{ width: 60 }} />
+        <View style={{ width: 36 }} />
       </View>
 
       <View style={styles.filterRow}>

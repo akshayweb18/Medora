@@ -16,6 +16,7 @@ import { Medicine, FrequencyType, DoseUnit, ScheduledTime } from '@/types';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { todayStr, defaultTimesForFrequency, formatTime } from '@/utils/date';
+import { BackButton } from '@/components/ui/BackButton';
 
 const FREQUENCIES: { key: FrequencyType; label: string }[] = [
   { key: 'once_daily',        label: 'Once daily'      },
@@ -200,11 +201,9 @@ export default function AddMedicineScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleCancel} style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleCancel} />
         <Text style={styles.title}>{isEdit ? 'Edit Medicine' : 'Add Medicine'}</Text>
-        <View style={{ width: 64 }} />
+        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>

@@ -12,6 +12,7 @@ import { getAllProfiles, deleteProfile } from '@/db/profiles';
 import { Profile } from '@/types';
 import { LoadingState } from '@/components/ui/StateViews';
 import { confirmAction } from '@/utils/confirm';
+import { BackButton } from '@/components/ui/BackButton';
 
 const RELATION_COLORS: Record<string, string> = {
   self: Colors.primary, spouse: Colors.secondary, child: Colors.accent,
@@ -63,9 +64,7 @@ export default function FamilyScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleBack} />
         <Text style={styles.title}>Family Profiles</Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/family/add')}>
           <Text style={styles.addBtnText}>+ Add</Text>

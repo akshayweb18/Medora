@@ -12,6 +12,7 @@ import { getAllMeasurements, getLatestByType } from '@/db/measurements';
 import { HealthMeasurement } from '@/types';
 import { LoadingState } from '@/components/ui/StateViews';
 import { formatDate } from '@/utils/date';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default function HealthScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
@@ -55,9 +56,7 @@ export default function HealthScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleBack} />
         <Text style={styles.title}>Health Tracker</Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/health/add')}>
           <Text style={styles.addBtnText}>+ Log</Text>

@@ -2,9 +2,9 @@
  * MediVault Profile Context
  * Provides the active profile to all screens without prop-drilling.
  */
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Profile } from '@/types';
-import { ensureDefaultProfile, getAllProfiles, syncProfileWithAuthUser } from '@/db/profiles';
+import { ensureDefaultProfile, getAllProfiles, syncProfileWithAuthUser, resetProfileOnLogout } from '@/db/profiles';
 import { useAuth } from '@/store/authStore';
 
 interface ProfileContextValue {
@@ -25,7 +25,8 @@ const ProfileContext = createContext<ProfileContextValue>({
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
+  const prevUserRef = useRef(user);
+  const [activeProfile, setActiveProfileState] = useState<Profile | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,11 +36,17 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         const synced = await syncProfileWithAuthUser(user);
         if (synced) defaultP = synced;
+      } else {
+        // When logged out, clear any leftover Google avatar/name from default profile
+        if (defaultP.avatarUri && (defaultP.avatarUri.startsWith('http://') || defaultP.avatarUri.startsWith('https://'))) {
+          await resetProfileOnLogout();
+          defaultP = await ensureDefaultProfile();
+        }
       }
       const all = await getAllProfiles();
       const currentDefault = all.find(p => p.id === defaultP.id) ?? defaultP;
       setProfiles(all.length ? all : [currentDefault]);
-      setActiveProfile(prev => {
+      setActiveProfileState(prev => {
         if (prev) {
           const updated = all.find(p => p.id === prev.id);
           return updated ?? currentDefault;
@@ -50,24 +57,39 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       console.error('ProfileProvider error:', e);
       const fallbackProfile: Profile = {
         id: 'default-profile',
-        name: user?.displayName || 'Me',
+        name: 'Me',
         relationship: 'self',
-        avatarUri: user?.photoURL || undefined,
         isDefault: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       setProfiles(prev => (prev.length ? prev : [fallbackProfile]));
-      setActiveProfile(prev => prev ?? fallbackProfile);
+      setActiveProfileState(prev => prev ?? fallbackProfile);
     } finally {
       setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
+    const wasLoggedIn = prevUserRef.current !== null;
+    const isNowLoggedOut = user === null;
+
+    // When user logs out, immediately clear the displayed profile so
+    // Google photo/name vanishes instantly (before async DB reload finishes).
+    if (wasLoggedIn && isNowLoggedOut) {
+      setActiveProfileState(null);
+      setProfiles([]);
+      setLoading(true);
+    }
+
+    prevUserRef.current = user;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshProfiles();
-  }, [refreshProfiles]);
+  }, [refreshProfiles, user]);
+
+  const setActiveProfile = useCallback((profile: Profile) => {
+    setActiveProfileState(profile);
+  }, []);
 
   return (
     <ProfileContext.Provider value={{ activeProfile, profiles, loading, setActiveProfile, refreshProfiles }}>

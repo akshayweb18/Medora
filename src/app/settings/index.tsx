@@ -10,6 +10,7 @@ import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme'
 import { cancelAllMedicineNotifications } from '@/services/notifications';
 import { useAuth } from '@/store/authStore';
 import { confirmAction } from '@/utils/confirm';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -108,11 +109,9 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleBack} />
         <Text style={styles.title}>Settings</Text>
-        <View style={{ width: 60 }} />
+        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

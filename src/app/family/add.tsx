@@ -11,6 +11,7 @@ import { useProfile } from '@/store/profileStore';
 import { createProfile } from '@/db/profiles';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { BackButton } from '@/components/ui/BackButton';
 import { Profile } from '@/types';
 
 type Relationship = Profile['relationship'];
@@ -83,11 +84,9 @@ export default function AddFamilyScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleCancel} style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleCancel} />
         <Text style={styles.title}>Add Family Member</Text>
-        <View style={{ width: 64 }} />
+        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>

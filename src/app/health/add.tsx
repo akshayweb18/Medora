@@ -11,6 +11,7 @@ import { useProfile } from '@/store/profileStore';
 import { createMeasurement } from '@/db/measurements';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { BackButton } from '@/components/ui/BackButton';
 import { nowISO } from '@/utils/date';
 import { HealthMeasurement } from '@/types';
 
@@ -91,11 +92,9 @@ export default function AddMeasurementScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleCancel} style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleCancel} />
         <Text style={styles.title}>Log Vital</Text>
-        <View style={{ width: 64 }} />
+        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>

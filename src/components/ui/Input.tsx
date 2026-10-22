@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, StyleSheet, ViewStyle, TouchableOpacity, Platform } from 'react-native';
 import { Colors, Typography, Radius, Spacing } from '@/constants/theme';
 
 interface InputProps {
@@ -29,12 +29,19 @@ export function Input({
   rightIcon, leftIcon, onRightIconPress, autoCapitalize = 'sentences',
 }: InputProps) {
   const [focused, setFocused] = useState(false);
-  const borderColor = error ? Colors.danger : focused ? Colors.primary : Colors.border;
+
+  const borderColor = error
+    ? Colors.danger
+    : focused
+    ? Colors.primary
+    : Colors.border;
+
+  const borderWidth = focused ? 2 : 1.5;
 
   return (
     <View style={[styles.wrapper, style]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputRow, { borderColor }]}>
+      <View style={[styles.inputRow, { borderColor, borderWidth }]}>
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         <TextInput
           value={value}
@@ -56,6 +63,17 @@ export function Input({
             rightIcon ? { paddingRight: 0 } : null,
             multiline ? styles.multiline : null,
             !editable ? styles.disabled : null,
+            // Suppress native browser/Android black border & focus outline
+            Platform.OS === 'web'
+              ? ({
+                  outline: 'none',
+                  outlineWidth: 0,
+                  outlineStyle: 'none',
+                  borderWidth: 0,
+                  borderColor: 'transparent',
+                  boxShadow: 'none',
+                } as any)
+              : null,
           ]}
         />
         {rightIcon && (
@@ -84,8 +102,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing[3],
   },
@@ -95,9 +112,18 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     paddingVertical: Spacing[3],
     minHeight: 48,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        outlineWidth: 0,
+        boxShadow: 'none',
+      } as any,
+    }),
   },
   multiline: { minHeight: 96, textAlignVertical: 'top' },
-  disabled: { color: Colors.textDisabled },
+  disabled: { color: Colors.textDisabled, backgroundColor: Colors.gray50 },
   leftIcon: { marginRight: Spacing[2] },
   rightIcon: { marginLeft: Spacing[2], padding: 4 },
   error: { fontSize: Typography.xs, color: Colors.danger },

@@ -13,6 +13,7 @@ import { pickPdfDocument, pickImage, saveReportFile } from '@/services/fileStora
 import { uploadToCloudinary } from '@/services/cloudinary';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { BackButton } from '@/components/ui/BackButton';
 import { todayStr, formatFileSize } from '@/utils/date';
 import { MedicalReport } from '@/types';
 
@@ -118,11 +119,9 @@ export default function AddReportScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleCancel} style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleCancel} />
         <Text style={styles.title}>Upload Report</Text>
-        <View style={{ width: 64 }} />
+        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
