@@ -58,6 +58,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="ai"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon emoji="✨" label="AI Hub" focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="reports"
         options={{
           tabBarIcon: ({ focused }) => (

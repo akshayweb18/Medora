@@ -10,6 +10,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { navigate } from '@/utils/navigation';
 
 import { Colors, Typography, Spacing, Radius, Shadows, MEASUREMENT_TYPES } from '@/constants/theme';
+import { Gradient } from '@/components/ui/Gradient';
 import { useProfile } from '@/store/profileStore';
 import { useAuth } from '@/store/authStore';
 import { getMedicinesByProfile } from '@/db/medicines';
@@ -181,6 +182,36 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* ✨ Medora AI Banner */}
+        <TouchableOpacity
+          style={styles.aiHeroCard}
+          onPress={() => router.push('/ai')}
+          activeOpacity={0.88}
+        >
+          <Gradient
+            colors={['#1A1A2E', '#16213E', '#0F3460']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.aiHeroGradient}
+          >
+            <View style={styles.aiHeroLeft}>
+              <View style={styles.aiHeroBadge}>
+                <Text style={styles.aiHeroBadgeText}>✨ Google Gemini 1.5</Text>
+              </View>
+              <Text style={styles.aiHeroTitle}>Medora AI Health Assistant</Text>
+              <Text style={styles.aiHeroSub}>
+                Analyze reports, explain test results & ask medical questions
+              </Text>
+            </View>
+            <View style={styles.aiHeroRight}>
+              <Text style={styles.aiHeroEmoji}>🤖</Text>
+              <View style={styles.aiHeroBtn}>
+                <Text style={styles.aiHeroBtnText}>Open AI ›</Text>
+              </View>
+            </View>
+          </Gradient>
+        </TouchableOpacity>
+
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <TouchableOpacity style={[styles.qaBtn, { backgroundColor: Colors.primaryLight }]} onPress={() => router.push('/medicines/add')}>
@@ -324,6 +355,41 @@ const styles = StyleSheet.create({
   nextDoseLabel: { fontSize: Typography.sm, color: 'rgba(255,255,255,0.8)' },
   nextDoseName: { fontSize: Typography.md, fontWeight: Typography.bold, color: Colors.white, flex: 1, marginHorizontal: Spacing[2] },
   nextDoseTime: { fontSize: Typography.lg, fontWeight: Typography.bold, color: Colors.white },
+
+  // AI Hero Card
+  aiHeroCard: {
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    marginBottom: Spacing[4],
+    ...Shadows.md,
+  },
+  aiHeroGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing[4],
+    gap: Spacing[3],
+  },
+  aiHeroLeft: { flex: 1 },
+  aiHeroBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ffffff20',
+    paddingHorizontal: Spacing[2] + 2,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    marginBottom: 4,
+  },
+  aiHeroBadgeText: { color: '#FFD700', fontSize: Typography.xs, fontWeight: Typography.bold },
+  aiHeroTitle: { color: '#FFFFFF', fontSize: Typography.md, fontWeight: Typography.bold },
+  aiHeroSub: { color: '#ffffffbb', fontSize: Typography.xs, marginTop: 2, lineHeight: 16 },
+  aiHeroRight: { alignItems: 'center', justifyContent: 'center' },
+  aiHeroEmoji: { fontSize: 28, marginBottom: 4 },
+  aiHeroBtn: {
+    backgroundColor: '#ffffff25',
+    paddingHorizontal: Spacing[2] + 2,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+  },
+  aiHeroBtnText: { color: '#FFFFFF', fontSize: Typography.xs, fontWeight: Typography.semibold },
 
   quickActions: { flexDirection: 'row', gap: Spacing[3], marginBottom: Spacing[5] },
   qaBtn: {

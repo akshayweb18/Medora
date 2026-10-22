@@ -19,7 +19,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Gradient } from '@/components/ui/Gradient';
 
 import { AiMedicineExtracted, AiReportAnalysis, AiTestResult, analyzeReportWithAI, askFollowUpQuestion } from '@/services/gemini';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
@@ -236,7 +236,7 @@ export function AiReportAnalysisModal({ visible, onClose, report, fileAvailable 
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         {/* Gradient Header */}
-        <LinearGradient
+        <Gradient
           colors={['#1A1A2E', '#16213E', '#0F3460']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -254,19 +254,19 @@ export function AiReportAnalysisModal({ visible, onClose, report, fileAvailable 
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </Gradient>
 
         {/* ─── Loading State ─── */}
         {phase === 'loading' && (
           <View style={styles.loadingContainer}>
-            <LinearGradient
+            <Gradient
               colors={['#1A1A2E22', '#0F346022']}
               style={styles.loadingGlow}
             >
               <Animated.Text style={[styles.brainEmoji, { transform: [{ scale: pulseAnim }] }]}>
                 🧠
               </Animated.Text>
-            </LinearGradient>
+            </Gradient>
             <Text style={styles.loadingTitle}>Analyzing with AI…</Text>
             <Text style={styles.loadingSubtitle}>
               Gemini is reading your medical document, extracting data, and generating insights.
@@ -304,7 +304,7 @@ export function AiReportAnalysisModal({ visible, onClose, report, fileAvailable 
               <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 
                 {/* Summary Card */}
-                <LinearGradient
+                <Gradient
                   colors={['#1A1A2E', '#0F3460']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -326,7 +326,7 @@ export function AiReportAnalysisModal({ visible, onClose, report, fileAvailable 
                       {analysis.patientInfo.date && <Text style={styles.patientChip}>📅 {analysis.patientInfo.date}</Text>}
                     </View>
                   )}
-                </LinearGradient>
+                </Gradient>
 
                 {/* Warnings */}
                 {analysis.warnings.length > 0 && (
@@ -430,7 +430,7 @@ export function AiReportAnalysisModal({ visible, onClose, report, fileAvailable 
 
                 {/* ─── AI Chat Q&A ─── */}
                 <View style={styles.chatSection}>
-                  <LinearGradient
+                  <Gradient
                     colors={['#1A1A2E', '#0F3460']}
                     style={styles.chatHeader}
                   >
@@ -439,7 +439,7 @@ export function AiReportAnalysisModal({ visible, onClose, report, fileAvailable 
                       <Text style={styles.chatHeaderTitle}>Ask Medora AI</Text>
                       <Text style={styles.chatHeaderSub}>Ask anything about this report</Text>
                     </View>
-                  </LinearGradient>
+                  </Gradient>
 
                   {/* Chat messages */}
                   {chat.map(msg => (
@@ -488,9 +488,9 @@ export function AiReportAnalysisModal({ visible, onClose, report, fileAvailable 
                       onPress={handleAskQuestion}
                       disabled={!chatInput.trim() || chatLoading}
                     >
-                      <LinearGradient colors={['#2D9CDB', '#1A7AB5']} style={styles.sendBtnGradient}>
+                      <Gradient colors={['#2D9CDB', '#1A7AB5']} style={styles.sendBtnGradient}>
                         <Text style={styles.sendBtnText}>➤</Text>
-                      </LinearGradient>
+                      </Gradient>
                     </TouchableOpacity>
                   </View>
                 </View>

@@ -8,6 +8,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { navigate } from '@/utils/navigation';
 
 import { Colors, Typography, Spacing, Radius, Shadows, REPORT_CATEGORIES } from '@/constants/theme';
+import { Gradient } from '@/components/ui/Gradient';
 import { useProfile } from '@/store/profileStore';
 import { useAuth } from '@/store/authStore';
 import { getReportsByProfile } from '@/db/reports';
@@ -55,6 +56,29 @@ export default function ReportsScreen() {
           <Text style={styles.addBtnText}>+ Upload</Text>
         </TouchableOpacity>
       </View>
+
+      {/* AI Assistant Banner */}
+      <TouchableOpacity
+        style={styles.aiBanner}
+        onPress={() => router.push('/ai')}
+        activeOpacity={0.85}
+      >
+        <Gradient
+          colors={['#1A1A2E', '#16213E', '#0F3460']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.aiBannerGradient}
+        >
+          <Text style={styles.aiBannerEmoji}>✨</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.aiBannerTitle}>Analyze Reports with Medora AI</Text>
+            <Text style={styles.aiBannerSub}>Powered by Gemini 1.5 Flash • Instant plain-English insights</Text>
+          </View>
+          <View style={styles.aiBannerBtn}>
+            <Text style={styles.aiBannerBtnText}>Try AI ›</Text>
+          </View>
+        </Gradient>
+      </TouchableOpacity>
 
       {/* Search */}
       <View style={styles.searchRow}>
@@ -118,6 +142,33 @@ const styles = StyleSheet.create({
   title: { fontSize: Typography['2xl'], fontWeight: Typography.bold, color: Colors.textPrimary },
   addBtn: { backgroundColor: Colors.secondary, paddingHorizontal: Spacing[4], paddingVertical: Spacing[2], borderRadius: Radius.full },
   addBtnText: { color: Colors.white, fontWeight: Typography.semibold, fontSize: Typography.base },
+
+  // AI Banner
+  aiBanner: {
+    marginHorizontal: Spacing[4],
+    marginBottom: Spacing[3],
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    ...Shadows.sm,
+  },
+  aiBannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing[3] + 2,
+    paddingVertical: Spacing[3],
+    gap: Spacing[2],
+  },
+  aiBannerEmoji: { fontSize: 22 },
+  aiBannerTitle: { color: '#FFFFFF', fontSize: Typography.sm, fontWeight: Typography.bold },
+  aiBannerSub: { color: '#ffffffbb', fontSize: Typography.xs, marginTop: 1 },
+  aiBannerBtn: {
+    backgroundColor: '#ffffff25',
+    paddingHorizontal: Spacing[2] + 2,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+  },
+  aiBannerBtnText: { color: '#FFD700', fontSize: Typography.xs, fontWeight: Typography.bold },
+
   searchRow: { paddingHorizontal: Spacing[4], marginBottom: Spacing[2] },
   search: {
     backgroundColor: Colors.surface, borderRadius: Radius.md,

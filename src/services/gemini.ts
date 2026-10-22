@@ -227,3 +227,31 @@ Provide a clear, compassionate, and accurate answer in 2-4 sentences. Always rec
   const parts: GeminiPart[] = [{ text: context }];
   return await callGemini(parts);
 }
+
+export async function askGeneralMedicalAI(
+  question: string,
+  history: { role: 'user' | 'ai'; text: string }[] = [],
+): Promise<string> {
+  const historyText = history
+    .slice(-6)
+    .map(h => `${h.role === 'user' ? 'User' : 'Medora AI'}: ${h.text}`)
+    .join('\n');
+
+  const prompt = `You are Medora AI, a compassionate, helpful, and accurate medical health assistant powered by Google Gemini.
+Your role:
+- Answer health, medication, lifestyle, and lab test questions in plain, friendly English.
+- Explain drug mechanisms, common dosages, side effects, and instructions (e.g. before/after food).
+- Clarify lab ranges and medical jargon.
+- Emphasize consulting a qualified doctor for definitive diagnoses or prescription adjustments.
+- For emergency symptoms (e.g. chest pain, difficulty breathing, severe stroke signs), immediately advise emergency care.
+
+Previous conversation:
+${historyText || 'None'}
+
+User: ${question}
+
+Provide a concise, helpful, and empathetic answer (2-4 paragraphs max).`;
+
+  const parts: GeminiPart[] = [{ text: prompt }];
+  return await callGemini(parts);
+}

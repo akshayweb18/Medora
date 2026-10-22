@@ -5,7 +5,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Gradient } from '@/components/ui/Gradient';
 
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { Colors, Radius, REPORT_CATEGORIES, Shadows, Spacing, Typography } from '@/constants/theme';
@@ -141,7 +141,7 @@ export default function ReportDetailScreen() {
             onPress={() => setAiModalVisible(true)}
             activeOpacity={0.85}
           >
-            <LinearGradient
+            <Gradient
               colors={['#1A1A2E', '#0F3460', '#16213E']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -153,7 +153,7 @@ export default function ReportDetailScreen() {
                 <Text style={styles.aiBtnSub}>Gemini 1.5 Flash • Instant insights</Text>
               </View>
               <Text style={styles.aiBtnArrow}>›</Text>
-            </LinearGradient>
+            </Gradient>
           </TouchableOpacity>
 
           <TouchableOpacity
