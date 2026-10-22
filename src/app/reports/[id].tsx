@@ -3,21 +3,24 @@
  */
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { Colors, Radius, REPORT_CATEGORIES, Shadows, Spacing, Typography } from '@/constants/theme';
 import { deleteReport, getReportById } from '@/db/reports';
-import { deleteReportFile, fileExists, shareFile } from '@/services/fileStorage';
+import { deleteReportFile, fileExists } from '@/services/fileStorage';
 import { MedicalReport } from '@/types';
 import { formatDate, formatFileSize } from '@/utils/date';
+import { confirmAction } from '@/utils/confirm';
+import { ShareReportModal } from '@/components/reports/ShareReportModal';
 
 export default function ReportDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [report, setReport] = useState<MedicalReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [fileAvailable, setFileAvailable] = useState(true);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   useFocusEffect(useCallback(() => {
     if (!id) return;
@@ -28,32 +31,24 @@ export default function ReportDetailScreen() {
     }).catch(console.error).finally(() => setLoading(false));
   }, [id]));
 
-  const handleShare = async () => {
-    if (!report || !fileAvailable) return;
-    try {
-      await shareFile(report.filePath, report.fileType);
-    } catch (e: any) {
-      Alert.alert('Share failed', e.message ?? 'Could not share file.');
-    }
+  const handleShare = () => {
+    if (!report) return;
+    setShareModalVisible(true);
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Report',
-      `Permanently delete "${report?.title}"? The file will also be removed from this device.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete', style: 'destructive',
-          onPress: async () => {
-            if (!report) return;
-            await deleteReport(report.id);
-            await deleteReportFile(report.filePath);
-            router.back();
-          },
-        },
-      ]
-    );
+    if (!report) return;
+    confirmAction({
+      title: 'Delete Report',
+      message: `Permanently delete "${report.title}"? The file will also be removed from this device.`,
+      confirmText: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        await deleteReport(report.id);
+        await deleteReportFile(report.filePath);
+        router.back();
+      },
+    });
   };
 
   if (loading) return <LoadingState />;
@@ -152,6 +147,14 @@ export default function ReportDetailScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {report && (
+        <ShareReportModal
+          visible={shareModalVisible}
+          onClose={() => setShareModalVisible(false)}
+          report={report}
+        />
+      )}
     </SafeAreaView>
   );
 }

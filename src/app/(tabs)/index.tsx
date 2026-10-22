@@ -3,7 +3,7 @@
  */
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl,
+  View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -11,6 +11,7 @@ import { navigate } from '@/utils/navigation';
 
 import { Colors, Typography, Spacing, Radius, Shadows, MEASUREMENT_TYPES } from '@/constants/theme';
 import { useProfile } from '@/store/profileStore';
+import { useAuth } from '@/store/authStore';
 import { getMedicinesByProfile } from '@/db/medicines';
 import { getDoseLogsByDate, getTodaySummary, upsertDoseLog } from '@/db/doses';
 import { getRecentReports } from '@/db/reports';
@@ -25,6 +26,8 @@ interface TodayDose { medicine: Medicine; time: ScheduledTime; scheduledFor: str
 
 export default function HomeScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
+  const { user } = useAuth();
+  const [imageError, setImageError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [todayDoses, setTodayDoses] = useState<TodayDose[]>([]);
   const [summary, setSummary] = useState({ taken: 0, upcoming: 0, missed: 0, total: 0 });
@@ -111,6 +114,12 @@ export default function HomeScreen() {
   const upcomingDoses = todayDoses.filter(d => !d.log || d.log.status === 'upcoming' || d.log.status === 'snoozed');
   const nextDose = upcomingDoses.find(d => new Date(d.scheduledFor) > new Date());
 
+  const avatarUri = activeProfile?.avatarUri || user?.photoURL;
+  const greetingName = activeProfile?.name && activeProfile.name !== 'Me'
+    ? activeProfile.name
+    : (user?.displayName || activeProfile?.name || 'there');
+  const avatarInitial = (greetingName || user?.email || 'M')[0].toUpperCase();
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
@@ -121,17 +130,26 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Hello, {activeProfile?.name ?? 'there'} 👋</Text>
+          <View style={styles.greetingContainer}>
+            <Text style={styles.greeting} numberOfLines={1}>Hello, {greetingName} 👋</Text>
             <Text style={styles.date}>{formatTodayFull()}</Text>
           </View>
           <TouchableOpacity
             style={styles.profileAvatar}
             onPress={() => navigate('/family')}
+            activeOpacity={0.8}
+            accessibilityLabel="Profile and Family"
           >
-            <Text style={styles.avatarText}>
-              {(activeProfile?.name ?? 'M')[0].toUpperCase()}
-            </Text>
+            {avatarUri && !imageError ? (
+              <Image
+                source={{ uri: avatarUri }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <Text style={styles.avatarText}>{avatarInitial}</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -269,13 +287,16 @@ const styles = StyleSheet.create({
   content: { padding: Spacing[4] },
 
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing[5] },
+  greetingContainer: { flex: 1, marginRight: Spacing[3] },
   greeting: { fontSize: Typography['2xl'], fontWeight: Typography.bold, color: Colors.textPrimary },
   date: { fontSize: Typography.sm, color: Colors.textSecondary, marginTop: 2 },
   profileAvatar: {
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
+  avatarImage: { width: 44, height: 44, borderRadius: 22 },
   avatarText: { color: Colors.white, fontSize: Typography.lg, fontWeight: Typography.bold },
 
   statsRow: { flexDirection: 'row', gap: Spacing[3], marginBottom: Spacing[4] },

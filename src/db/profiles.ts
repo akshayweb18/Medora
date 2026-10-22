@@ -76,28 +76,34 @@ export async function updateProfile(
   data: Partial<Omit<Profile, 'id' | 'createdAt'>>
 ): Promise<void> {
   const db = await getDatabase();
+  const existing = await getProfileById(id);
+  if (!existing) return;
+
   const now = nowISO();
   if (data.isDefault) {
     await db.runAsync('UPDATE profiles SET is_default = 0');
   }
+
+  const name = data.name !== undefined ? data.name : existing.name;
+  const relationship = data.relationship !== undefined ? data.relationship : existing.relationship;
+  const dateOfBirth = data.dateOfBirth !== undefined ? data.dateOfBirth : (existing.dateOfBirth ?? null);
+  const gender = data.gender !== undefined ? data.gender : (existing.gender ?? null);
+  const bloodGroup = data.bloodGroup !== undefined ? data.bloodGroup : (existing.bloodGroup ?? null);
+  const avatarUri = data.avatarUri !== undefined ? data.avatarUri : (existing.avatarUri ?? null);
+  const isDefault = data.isDefault !== undefined ? (data.isDefault ? 1 : 0) : (existing.isDefault ? 1 : 0);
+
   await db.runAsync(
     `UPDATE profiles SET
-       name = COALESCE(?, name),
-       relationship = COALESCE(?, relationship),
+       name = ?,
+       relationship = ?,
        date_of_birth = ?,
        gender = ?,
        blood_group = ?,
        avatar_uri = ?,
-       is_default = COALESCE(?, is_default),
+       is_default = ?,
        updated_at = ?
      WHERE id = ?`,
-    [
-      data.name ?? null, data.relationship ?? null,
-      data.dateOfBirth ?? null, data.gender ?? null,
-      data.bloodGroup ?? null, data.avatarUri ?? null,
-      data.isDefault != null ? (data.isDefault ? 1 : 0) : null,
-      now, id,
-    ]
+    [name, relationship, dateOfBirth, gender, bloodGroup, avatarUri, isDefault, now, id]
   );
   getProfileById(id).then((p) => {
     if (p) syncProfileToCloud(p).catch(() => {});
@@ -119,3 +125,32 @@ export async function ensureDefaultProfile(): Promise<Profile> {
     isDefault: true,
   });
 }
+
+export async function syncProfileWithAuthUser(user: {
+  displayName?: string | null;
+  photoURL?: string | null;
+  email?: string | null;
+}): Promise<Profile | null> {
+  try {
+    const defaultP = await ensureDefaultProfile();
+    const updates: Partial<Omit<Profile, 'id' | 'createdAt'>> = {};
+
+    if ((!defaultP.name || defaultP.name === 'Me') && (user.displayName || user.email)) {
+      updates.name = user.displayName?.trim() || user.email?.split('@')[0] || defaultP.name;
+    }
+
+    if (user.photoURL && user.photoURL !== defaultP.avatarUri) {
+      updates.avatarUri = user.photoURL;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await updateProfile(defaultP.id, updates);
+      return await getProfileById(defaultP.id);
+    }
+    return defaultP;
+  } catch (err) {
+    console.warn('[Profiles] Failed to sync profile with auth user:', err);
+    return null;
+  }
+}
+

@@ -9,22 +9,23 @@ import { router } from 'expo-router';
 import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme';
 import { cancelAllMedicineNotifications } from '@/services/notifications';
 import { useAuth } from '@/store/authStore';
+import { confirmAction } from '@/utils/confirm';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const [notifEnabled, setNotifEnabled] = useState(true);
 
   const handleClearAllNotifs = () => {
-    Alert.alert('Clear Notifications', 'Cancel all scheduled medicine reminders?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear', style: 'destructive',
-        onPress: async () => {
-          await cancelAllMedicineNotifications();
-          Alert.alert('Done', 'All scheduled reminders have been cancelled.');
-        },
+    confirmAction({
+      title: 'Clear Notifications',
+      message: 'Cancel all scheduled medicine reminders?',
+      confirmText: 'Clear',
+      destructive: true,
+      onConfirm: async () => {
+        await cancelAllMedicineNotifications();
+        Alert.alert('Done', 'All scheduled reminders have been cancelled.');
       },
-    ]);
+    });
   };
 
   const settings = [
@@ -41,10 +42,13 @@ export default function SettingsScreen() {
               label: 'Sign Out',
               type: 'button' as const,
               onPress: async () => {
-                Alert.alert('Sign Out', 'Sign out of your Firebase account?', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Sign Out', style: 'destructive', onPress: logout },
-                ]);
+                confirmAction({
+                  title: 'Sign Out',
+                  message: 'Sign out of your account?',
+                  confirmText: 'Sign Out',
+                  destructive: true,
+                  onConfirm: logout,
+                });
               },
               destructive: true,
             },

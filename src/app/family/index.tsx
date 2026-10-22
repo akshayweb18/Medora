@@ -2,7 +2,7 @@
  * Family Profiles Screen
  */
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 
@@ -11,6 +11,7 @@ import { useProfile } from '@/store/profileStore';
 import { getAllProfiles, deleteProfile } from '@/db/profiles';
 import { Profile } from '@/types';
 import { LoadingState } from '@/components/ui/StateViews';
+import { confirmAction } from '@/utils/confirm';
 
 const RELATION_COLORS: Record<string, string> = {
   self: Colors.primary, spouse: Colors.secondary, child: Colors.accent,
@@ -32,22 +33,18 @@ export default function FamilyScreen() {
       Alert.alert('Cannot delete', 'You cannot delete your default profile.');
       return;
     }
-    Alert.alert(
-      'Delete Profile',
-      `Delete "${profile.name}"? All their records will be permanently removed.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete', style: 'destructive',
-          onPress: async () => {
-            await deleteProfile(profile.id);
-            await refreshProfiles();
-            const updated = await getAllProfiles();
-            setProfiles(updated);
-          },
-        },
-      ]
-    );
+    confirmAction({
+      title: 'Delete Profile',
+      message: `Delete "${profile.name}"? All their records will be permanently removed.`,
+      confirmText: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        await deleteProfile(profile.id);
+        await refreshProfiles();
+        const updated = await getAllProfiles();
+        setProfiles(updated);
+      },
+    });
   };
 
   const handleSwitch = (p: Profile) => {
@@ -90,7 +87,11 @@ export default function FamilyScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.avatar, { backgroundColor: color }]}>
-                  <Text style={styles.avatarText}>{item.name[0].toUpperCase()}</Text>
+                  {item.avatarUri ? (
+                    <Image source={{ uri: item.avatarUri }} style={styles.avatarImage} resizeMode="cover" />
+                  ) : (
+                    <Text style={styles.avatarText}>{item.name[0].toUpperCase()}</Text>
+                  )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.nameRow}>
@@ -139,7 +140,8 @@ const styles = StyleSheet.create({
   list: { padding: Spacing[4], flexGrow: 1 },
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing[3], backgroundColor: Colors.surface, borderRadius: Radius.xl, borderWidth: 1.5, borderColor: Colors.border, padding: Spacing[4], marginBottom: Spacing[3], ...Shadows.sm },
   profileCardActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
-  avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImage: { width: 52, height: 52, borderRadius: 26 },
   avatarText: { color: Colors.white, fontSize: Typography.xl, fontWeight: Typography.bold },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing[2], flexWrap: 'wrap' },
   profileName: { fontSize: Typography.base, fontWeight: Typography.bold, color: Colors.textPrimary },

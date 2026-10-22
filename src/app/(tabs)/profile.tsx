@@ -2,7 +2,7 @@
  * Profile Tab — user info, family profiles, quick links to settings.
  */
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { navigate } from '@/utils/navigation';
@@ -12,11 +12,18 @@ import { useProfile } from '@/store/profileStore';
 import { useAuth } from '@/store/authStore';
 import { getAllProfiles } from '@/db/profiles';
 import { Profile } from '@/types';
+import { confirmAction } from '@/utils/confirm';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { activeProfile, setActiveProfile } = useProfile();
   const [profiles, setProfiles] = useState<Profile[]>([]);
+
+  const avatarUri = activeProfile?.avatarUri || user?.photoURL;
+  const profileName = activeProfile?.name && activeProfile.name !== 'Me'
+    ? activeProfile.name
+    : (user?.displayName || activeProfile?.name || 'Me');
+  const avatarInitial = (profileName || user?.email || 'M')[0].toUpperCase();
 
   useFocusEffect(useCallback(() => {
     getAllProfiles().then(setProfiles).catch(console.error);
@@ -28,17 +35,19 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out from Firebase?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
+    confirmAction({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out from your account?',
+      confirmText: 'Sign Out',
+      destructive: true,
+      onConfirm: async () => {
+        try {
           await logout();
-          Alert.alert('Signed Out', 'You are now in Guest Mode.');
-        },
+        } catch (e) {
+          console.error('Logout error:', e);
+        }
       },
-    ]);
+    });
   };
 
   const menuItems = [
@@ -85,12 +94,16 @@ export default function ProfileScreen() {
         {/* Active profile card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {(activeProfile?.name ?? 'M')[0].toUpperCase()}
-            </Text>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.cardAvatarImage} resizeMode="cover" />
+            ) : (
+              <Text style={styles.avatarText}>
+                {avatarInitial}
+              </Text>
+            )}
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{activeProfile?.name ?? 'Me'}</Text>
+            <Text style={styles.profileName}>{profileName}</Text>
             <Text style={styles.profileRelation}>{activeProfile?.relationship ?? 'self'}</Text>
             {activeProfile?.bloodGroup && (
               <Text style={styles.profileMeta}>🩸 {activeProfile.bloodGroup}</Text>
@@ -118,7 +131,11 @@ export default function ProfileScreen() {
                     onPress={() => handleSwitchProfile(p)}
                   >
                     <View style={[styles.chipAvatar, { backgroundColor: isActive ? Colors.primary : Colors.gray200 }]}>
-                      <Text style={styles.chipAvatarText}>{p.name[0].toUpperCase()}</Text>
+                      {p.avatarUri ? (
+                        <Image source={{ uri: p.avatarUri }} style={styles.chipAvatarImage} resizeMode="cover" />
+                      ) : (
+                        <Text style={styles.chipAvatarText}>{p.name[0].toUpperCase()}</Text>
+                      )}
                     </View>
                     <Text style={[styles.chipName, isActive && styles.chipNameActive]}>
                       {p.name}
@@ -243,7 +260,8 @@ const styles = StyleSheet.create({
     padding: Spacing[4], marginBottom: Spacing[5], ...Shadows.md,
     borderWidth: 1, borderColor: Colors.border,
   },
-  avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  cardAvatarImage: { width: 64, height: 64, borderRadius: 32 },
   avatarText: { color: Colors.white, fontSize: Typography['2xl'], fontWeight: Typography.bold },
   profileInfo: { flex: 1 },
   profileName: { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.textPrimary },
@@ -258,7 +276,8 @@ const styles = StyleSheet.create({
   profilesRow: { marginHorizontal: -Spacing[4], paddingHorizontal: Spacing[4] },
   profileChip: { alignItems: 'center', gap: Spacing[1], marginRight: Spacing[3] },
   profileChipActive: {},
-  chipAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  chipAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  chipAvatarImage: { width: 48, height: 48, borderRadius: 24 },
   chipAvatarText: { color: Colors.white, fontWeight: Typography.bold, fontSize: Typography.lg },
   chipName: { fontSize: Typography.xs, color: Colors.textSecondary, fontWeight: Typography.medium },
   chipNameActive: { color: Colors.primary, fontWeight: Typography.bold },

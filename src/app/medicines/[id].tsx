@@ -2,7 +2,7 @@
  * Medicine Detail Screen — shows full info, dose history, and action buttons.
  */
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { navigate } from '@/utils/navigation';
@@ -15,6 +15,7 @@ import { Medicine, DoseLog } from '@/types';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState, ErrorState } from '@/components/ui/StateViews';
 import { formatDate, formatTime, relativeDate } from '@/utils/date';
+import { confirmAction } from '@/utils/confirm';
 
 const STATUS_COLORS: Record<string, string> = {
   taken: Colors.success, skipped: Colors.gray400,
@@ -37,41 +38,33 @@ export default function MedicineDetailScreen() {
   }, [id]));
 
   const handleArchive = () => {
-    Alert.alert(
-      'Archive Medicine',
-      `Archive "${medicine?.name}"? It will be hidden from the active list but its history will be preserved.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive', style: 'destructive',
-          onPress: async () => {
-            if (!id) return;
-            await archiveMedicine(id);
-            await cancelMedicineNotifications(id);
-            router.back();
-          },
-        },
-      ]
-    );
+    confirmAction({
+      title: 'Archive Medicine',
+      message: `Archive "${medicine?.name}"? It will be hidden from the active list but its history will be preserved.`,
+      confirmText: 'Archive',
+      destructive: true,
+      onConfirm: async () => {
+        if (!id) return;
+        await archiveMedicine(id);
+        await cancelMedicineNotifications(id);
+        router.back();
+      },
+    });
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Medicine',
-      `Permanently delete "${medicine?.name}" and all its dose history? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete', style: 'destructive',
-          onPress: async () => {
-            if (!id) return;
-            await deleteMedicine(id);
-            await cancelMedicineNotifications(id);
-            router.back();
-          },
-        },
-      ]
-    );
+    confirmAction({
+      title: 'Delete Medicine',
+      message: `Permanently delete "${medicine?.name}" and all its dose history? This cannot be undone.`,
+      confirmText: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        if (!id) return;
+        await deleteMedicine(id);
+        await cancelMedicineNotifications(id);
+        router.back();
+      },
+    });
   };
 
   if (loading) return <LoadingState />;
