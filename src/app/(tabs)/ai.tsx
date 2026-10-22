@@ -24,6 +24,7 @@ import { getReportsByProfile } from '@/db/reports';
 import { MedicalReport } from '@/types';
 import { askGeneralMedicalAI } from '@/services/gemini';
 import { AiReportAnalysisModal } from '@/components/reports/AiReportAnalysisModal';
+import { FormattedAiText } from '@/components/ui/FormattedAiText';
 import { fileExists } from '@/services/fileStorage';
 import { formatDate } from '@/utils/date';
 
@@ -250,14 +251,14 @@ export default function AiHubScreen() {
                     msg.role === 'user' ? styles.userMsgBubble : styles.aiMsgBubble,
                   ]}
                 >
-                  <Text
+                  <FormattedAiText
+                    text={msg.text}
+                    isUser={msg.role === 'user'}
                     style={[
                       styles.msgText,
                       msg.role === 'user' ? styles.userMsgText : styles.aiMsgText,
                     ]}
-                  >
-                    {msg.text}
-                  </Text>
+                  />
                   <Text
                     style={[
                       styles.msgTime,

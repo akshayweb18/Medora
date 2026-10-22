@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Gradient } from '@/components/ui/Gradient';
+import { FormattedAiText } from '@/components/ui/FormattedAiText';
 
 import { AiMedicineExtracted, AiReportAnalysis, AiTestResult, analyzeReportWithAI, askFollowUpQuestion } from '@/services/gemini';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
@@ -445,7 +446,11 @@ export function AiReportAnalysisModal({ visible, onClose, report, fileAvailable 
                   {chat.map(msg => (
                     <View key={msg.id} style={[styles.chatBubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
                       {msg.role === 'ai' && <Text style={styles.chatAiLabel}>🧠 Medora AI</Text>}
-                      <Text style={[styles.chatText, msg.role === 'user' ? styles.userText : styles.aiText]}>{msg.text}</Text>
+                      <FormattedAiText
+                        text={msg.text}
+                        isUser={msg.role === 'user'}
+                        style={[styles.chatText, msg.role === 'user' ? styles.userText : styles.aiText]}
+                      />
                     </View>
                   ))}
 

@@ -219,6 +219,14 @@ export async function analyzeReportWithAI(
   return parseAnalysis(rawText);
 }
 
+export function cleanAiMarkdown(text: string): string {
+  // Normalize bullet points: replace lines starting with "* " or "- " with "• "
+  let cleaned = text.replace(/^[\*\-]\s+/gm, '• ');
+  // Remove markdown header marks (###, ##, #)
+  cleaned = cleaned.replace(/^#{1,4}\s+/gm, '');
+  return cleaned.trim();
+}
+
 export async function askFollowUpQuestion(
   question: string,
   previousAnalysis: AiReportAnalysis,
@@ -239,10 +247,15 @@ ${warnSummary}
 
 The patient asks: "${question}"
 
-Provide a clear, compassionate, and accurate answer in 2-4 sentences. Always recommend consulting their doctor for final medical decisions.`;
+FORMATTING GUIDELINES:
+- Write in clean, natural, plain English without raw markdown asterisks (avoid ** or *).
+- Use round bullets (•) for any listed items.
+- Provide a clear, compassionate, and accurate answer in 2-4 sentences.
+- Always recommend consulting their doctor for final medical decisions.`;
 
   const parts: GeminiPart[] = [{ text: context }];
-  return await callGemini(parts);
+  const raw = await callGemini(parts);
+  return cleanAiMarkdown(raw);
 }
 
 export async function askGeneralMedicalAI(
@@ -262,13 +275,19 @@ Your role:
 - Emphasize consulting a qualified doctor for definitive diagnoses or prescription adjustments.
 - For emergency symptoms (e.g. chest pain, difficulty breathing, severe stroke signs), immediately advise emergency care.
 
+FORMATTING RULES:
+- Do NOT use markdown bold asterisks like **word**.
+- For lists, use the round bullet symbol • instead of * or -.
+- Write in clean, beautifully readable paragraphs.
+
 Previous conversation:
 ${historyText || 'None'}
 
 User: ${question}
 
-Provide a concise, helpful, and empathetic answer (2-4 paragraphs max).`;
+Provide a concise, helpful, and empathetic answer (2-4 paragraphs max):`;
 
   const parts: GeminiPart[] = [{ text: prompt }];
-  return await callGemini(parts);
+  const raw = await callGemini(parts);
+  return cleanAiMarkdown(raw);
 }
