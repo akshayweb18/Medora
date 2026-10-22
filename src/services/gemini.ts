@@ -3,11 +3,11 @@
  * Analyzes medical reports, prescriptions, and lab results from images or PDFs.
  */
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const CANDIDATE_MODELS = ['gemini-flash-latest', 'gemini-3.8-flash'];
 
-function getGeminiApiUrl(): string {
+function getGeminiApiUrl(model: string = CANDIDATE_MODELS[0]): string {
   const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
-  return `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -124,38 +124,55 @@ async function callGemini(parts: GeminiPart[]): Promise<string> {
     throw new Error('Gemini API key is not configured. Please add EXPO_PUBLIC_GEMINI_API_KEY to your .env file.');
   }
 
-  const response = await fetch(getGeminiApiUrl(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts }],
-      generationConfig: {
-        temperature: 0.2,
-        topP: 0.8,
-        maxOutputTokens: 4096,
-      },
-      safetySettings: [
-        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-      ],
-    }),
-  });
+  let lastErrorMsg = '';
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({})) as Record<string, unknown>;
-    const errObj = err?.error as Record<string, unknown> | undefined;
-    throw new Error((errObj?.message as string) ?? `Gemini API error ${response.status}`);
+  for (const model of CANDIDATE_MODELS) {
+    try {
+      const response = await fetch(getGeminiApiUrl(model), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: 0.2,
+            topP: 0.8,
+            maxOutputTokens: 4096,
+          },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({})) as Record<string, unknown>;
+        const errObj = err?.error as Record<string, unknown> | undefined;
+        lastErrorMsg = (errObj?.message as string) ?? `Gemini API error ${response.status}`;
+        if (response.status === 404 || lastErrorMsg.includes('not found') || lastErrorMsg.includes('no longer available')) {
+          continue;
+        }
+        throw new Error(lastErrorMsg);
+      }
+
+      const data = await response.json() as Record<string, unknown>;
+      const candidates = data?.candidates as Record<string, unknown>[];
+      const content = candidates?.[0]?.content as Record<string, unknown>;
+      const parts2 = content?.parts as Record<string, unknown>[];
+      const text = parts2?.[0]?.text as string | undefined;
+      if (!text) throw new Error('No response from Gemini');
+      return text;
+    } catch (e) {
+      if (e instanceof Error && (e.message.includes('not found') || e.message.includes('no longer available'))) {
+        continue;
+      }
+      throw e;
+    }
   }
 
-  const data = await response.json() as Record<string, unknown>;
-  const candidates = data?.candidates as Record<string, unknown>[];
-  const content = candidates?.[0]?.content as Record<string, unknown>;
-  const parts2 = content?.parts as Record<string, unknown>[];
-  const text = parts2?.[0]?.text as string | undefined;
-  if (!text) throw new Error('No response from Gemini');
-  return text;
+  throw new Error(lastErrorMsg || 'Unable to connect to Gemini API models.');
 }
 
 function parseAnalysis(raw: string): AiReportAnalysis {
