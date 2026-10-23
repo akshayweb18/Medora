@@ -1,5 +1,6 @@
-import React from 'react';
-import { TouchableOpacity, View, StyleSheet, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { Animated, Pressable, View, StyleSheet, Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/theme';
 import Svg, { Path } from 'react-native-svg';
 
@@ -24,17 +25,47 @@ function ChevronLeft({ color = Colors.primary }: { color?: string }) {
 }
 
 export function BackButton({ onPress, color }: BackButtonProps) {
+  const [scale] = useState(() => new Animated.Value(1));
+
+  const handlePressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.88,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 25,
+      bounciness: 12,
+    }).start();
+  };
+
+  const handlePress = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    onPress();
+  };
+
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={styles.btn}
-      activeOpacity={0.7}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-    >
-      <View style={styles.circle}>
-        <ChevronLeft color={color ?? Colors.primary} />
-      </View>
-    </TouchableOpacity>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={styles.btn}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <View style={styles.circle}>
+          <ChevronLeft color={color ?? Colors.primary} />
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 

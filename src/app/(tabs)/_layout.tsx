@@ -1,13 +1,110 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet, Animated, Pressable, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Radius } from '@/constants/theme';
 
-function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
+function SmoothTabBarButton({
+  children,
+  onPress,
+  onPressIn,
+  onPressOut,
+  style,
+  ...rest
+}: any) {
+  const [scale] = useState(() => new Animated.Value(1));
+
+  const handlePressIn = (e: any) => {
+    Animated.spring(scale, {
+      toValue: 0.88,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+    onPressIn?.(e);
+  };
+
+  const handlePressOut = (e: any) => {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 25,
+      bounciness: 8,
+    }).start();
+    onPressOut?.(e);
+  };
+
+  const handlePress = (e: any) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    onPress?.(e);
+  };
+
   return (
-    <View style={[styles.tabItem, focused && styles.tabItemFocused]}>
-      <Text style={styles.emoji}>{emoji}</Text>
+    <Animated.View style={[styles.tabBarItem, { transform: [{ scale }] }]}>
+      <Pressable
+        {...rest}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        android_ripple={{ color: Colors.primary + '18', borderless: true, radius: 28 }}
+        style={[style, styles.tabBarButton]}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
+  const [focusAnim] = useState(() => new Animated.Value(focused ? 1 : 0));
+
+  useEffect(() => {
+    Animated.spring(focusAnim, {
+      toValue: focused ? 1 : 0,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 8,
+    }).start();
+  }, [focused, focusAnim]);
+
+  const scale = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.92, 1.05],
+  });
+
+  const translateY = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, -2],
+  });
+
+  const pillOpacity = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
+  const pillScale = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.75, 1],
+  });
+
+  return (
+    <Animated.View style={[styles.tabItem, { transform: [{ scale }] }]}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.pillBackground,
+          {
+            opacity: pillOpacity,
+            transform: [{ scale: pillScale }],
+          },
+        ]}
+      />
+      <Animated.Text style={[styles.emoji, { transform: [{ translateY }] }]}>
+        {emoji}
+      </Animated.Text>
       <Text
         numberOfLines={1}
         ellipsizeMode="tail"
@@ -15,7 +112,7 @@ function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focu
       >
         {label}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -27,6 +124,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        animation: 'fade',
+        tabBarButton: (props) => <SmoothTabBarButton {...props} />,
         tabBarStyle: [
           styles.tabBar,
           {
@@ -99,6 +198,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   tabBarItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBarButton: {
+    flex: 1,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -116,8 +222,19 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     gap: 2,
     minWidth: 70,
+    overflow: 'hidden',
   },
-  tabItemFocused: { backgroundColor: Colors.primaryLight },
+  pillBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.primary + '25',
+  },
   emoji: { fontSize: 20, lineHeight: 22 },
   tabLabel: {
     fontSize: 10,
@@ -126,3 +243,4 @@ const styles = StyleSheet.create({
   },
   tabLabelFocused: { color: Colors.primary, fontWeight: Typography.semibold },
 });
+
