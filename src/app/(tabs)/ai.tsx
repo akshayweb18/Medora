@@ -321,7 +321,7 @@ export default function AiHubScreen() {
             activeOpacity={0.85}
           >
             <Gradient
-              colors={['#2D9CDB', '#1B6CA8']}
+              colors={['#27AE60', '#1A8A4A']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.uploadCtaGradient}

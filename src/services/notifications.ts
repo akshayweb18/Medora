@@ -68,7 +68,7 @@ export async function setupNotificationChannel() {
         name: 'Medicine Reminders',
         importance: notif.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#2D9CDB',
+        lightColor: '#27AE60',
         sound: 'default',
       });
     }

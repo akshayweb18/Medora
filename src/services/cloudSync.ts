@@ -200,7 +200,7 @@ export async function syncCloudDataToLocal(userId?: string): Promise<{ success: 
             m.dosageInstructions ?? '', m.frequency, JSON.stringify(m.scheduledTimes || []),
             m.weekdays ? JSON.stringify(m.weekdays) : null, m.startDate, m.endDate ?? null,
             m.prescribingDoctor ?? null, m.notes ?? null, m.isArchived ? 1 : 0,
-            m.color || '#2D9CDB', m.createdAt, m.updatedAt
+            m.color || '#27AE60', m.createdAt, m.updatedAt
           ]
         );
         medsCount++;

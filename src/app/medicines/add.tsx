@@ -31,8 +31,8 @@ const FREQUENCIES: { key: FrequencyType; label: string }[] = [
 const UNITS: DoseUnit[] = ['tablet','capsule','ml','mg','drops','puff','patch','injection','other'];
 
 const ACCENT_COLORS = [
-  '#2D9CDB','#27AE8F','#9B51E0','#F2994A',
-  '#EB5757','#219653','#2F80ED','#BB6BD9',
+  '#27AE60','#27AE8F','#9B51E0','#F2994A',
+  '#EB5757','#219653','#34C77E','#BB6BD9',
 ];
 
 export default function AddMedicineScreen() {

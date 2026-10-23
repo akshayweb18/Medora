@@ -19,7 +19,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundColor": "#2D9CDB"
+        "backgroundColor": "#27AE60"
       },
       "package": "com.medivault.app",
       "permissions": [
@@ -39,7 +39,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#2D9CDB",
+          "backgroundColor": "#27AE60",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
@@ -49,7 +49,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#2D9CDB",
+          "color": "#27AE60",
           "sounds": []
         }
       ],

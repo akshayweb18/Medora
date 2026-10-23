@@ -88,7 +88,7 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
       prescribing_doctor   TEXT,
       notes                TEXT,
       is_archived          INTEGER NOT NULL DEFAULT 0,
-      color                TEXT NOT NULL DEFAULT '#2D9CDB',
+      color                TEXT NOT NULL DEFAULT '#27AE60',
       created_at           TEXT NOT NULL,
       updated_at           TEXT NOT NULL,
       FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE

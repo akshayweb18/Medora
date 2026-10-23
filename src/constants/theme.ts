@@ -5,9 +5,9 @@
 
 export const Colors = {
   // Brand palette
-  primary: '#2D9CDB',       // vivid blue
-  primaryLight: '#E8F4FD',  // very light blue background
-  primaryDark: '#1A7AB5',   // darker blue for pressed states
+  primary: '#27AE60',       // vivid green
+  primaryLight: '#E8F8F0',  // very light green background
+  primaryDark: '#1A8A4A',   // darker green for pressed states
   secondary: '#27AE8F',     // teal / mint
   secondaryLight: '#E6F7F3',
   accent: '#F2994A',        // warm amber for warnings/alerts
@@ -20,12 +20,12 @@ export const Colors = {
   warningLight: '#FEF3EA',
   danger: '#EB5757',
   dangerLight: '#FEF0F0',
-  info: '#2D9CDB',
-  infoLight: '#E8F4FD',
+  info: '#27AE60',
+  infoLight: '#E8F8F0',
 
   // Dose status
   taken: '#27AE60',
-  upcoming: '#2D9CDB',
+  upcoming: '#27AE60',
   missed: '#EB5757',
   skipped: '#9B9B9B',
   snoozed: '#F2994A',
@@ -49,7 +49,7 @@ export const Colors = {
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
   border: '#E2E8F0',
-  borderFocus: '#2D9CDB',
+  borderFocus: '#27AE60',
 
   // Text
   textPrimary: '#1E293B',
@@ -59,8 +59,8 @@ export const Colors = {
 
   // Medicine accent palette (for card colours)
   medicineColors: [
-    '#2D9CDB', '#27AE8F', '#9B51E0', '#F2994A',
-    '#EB5757', '#219653', '#2F80ED', '#BB6BD9',
+    '#27AE60', '#27AE8F', '#9B51E0', '#F2994A',
+    '#EB5757', '#219653', '#34C77E', '#BB6BD9',
   ],
 } as const;
 
@@ -138,7 +138,7 @@ export const Shadows = {
 
 export const REPORT_CATEGORIES = [
   { key: 'blood_test',         label: 'Blood Test',         emoji: '🩸', color: '#EB5757' },
-  { key: 'prescription',       label: 'Prescription',       emoji: '💊', color: '#2D9CDB' },
+  { key: 'prescription',       label: 'Prescription',       emoji: '💊', color: '#27AE60' },
   { key: 'xray',               label: 'X-Ray',              emoji: '🦴', color: '#9B51E0' },
   { key: 'mri_ct',             label: 'MRI / CT',           emoji: '🧠', color: '#F2994A' },
   { key: 'discharge_summary',  label: 'Discharge Summary',  emoji: '🏥', color: '#27AE8F' },
@@ -151,9 +151,9 @@ export const MEASUREMENT_TYPES = [
   { key: 'blood_pressure', label: 'Blood Pressure', unit: 'mmHg', icon: '❤️', color: '#EB5757', hasTwo: true },
   { key: 'weight',         label: 'Weight',          unit: 'kg',   icon: '⚖️', color: '#9B51E0', hasTwo: false },
   { key: 'blood_glucose',  label: 'Blood Glucose',   unit: 'mg/dL',icon: '🩸', color: '#F2994A', hasTwo: false },
-  { key: 'temperature',    label: 'Temperature',     unit: '°C',   icon: '🌡️', color: '#2D9CDB', hasTwo: false },
+  { key: 'temperature',    label: 'Temperature',     unit: '°C',   icon: '🌡️', color: '#27AE60', hasTwo: false },
   { key: 'pulse',          label: 'Pulse',            unit: 'bpm',  icon: '💓', color: '#27AE8F', hasTwo: false },
-  { key: 'spo2',           label: 'SpO₂',             unit: '%',    icon: '🫁', color: '#2F80ED', hasTwo: false },
+  { key: 'spo2',           label: 'SpO₂',             unit: '%',    icon: '🫁', color: '#34C77E', hasTwo: false },
   { key: 'height',         label: 'Height',           unit: 'cm',   icon: '📏', color: '#64748B', hasTwo: false },
 ] as const;
 
