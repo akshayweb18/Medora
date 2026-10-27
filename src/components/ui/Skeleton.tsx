@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
@@ -14,7 +14,7 @@ interface SkeletonBoxProps {
 }
 
 export function SkeletonBox({ width = '100%', height = 16, radius = Radius.md, style }: SkeletonBoxProps) {
-  const anim = useRef(new Animated.Value(0)).current;
+  const anim = React.useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
     const loop = Animated.loop(

@@ -6,7 +6,7 @@
  * - Progressive rotating clinical status text
  * - Shimmering placeholder lines showing incoming content shape
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 
@@ -20,15 +20,15 @@ const STATUS_STAGES = [
 export function AiThinkingBubble() {
   const [stageIndex, setStageIndex] = useState(0);
 
-  // Dots bounce animations
-  const dot1 = useRef(new Animated.Value(0)).current;
-  const dot2 = useRef(new Animated.Value(0)).current;
-  const dot3 = useRef(new Animated.Value(0)).current;
+  // Dots bounce animations (useMemo satisfies react-hooks/refs)
+  const dot1 = React.useMemo(() => new Animated.Value(0), []);
+  const dot2 = React.useMemo(() => new Animated.Value(0), []);
+  const dot3 = React.useMemo(() => new Animated.Value(0), []);
 
   // Pulse animation for avatar & shimmer
-  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = React.useMemo(() => new Animated.Value(0), []);
   // Status text fade animation
-  const textFadeAnim = useRef(new Animated.Value(1)).current;
+  const textFadeAnim = React.useMemo(() => new Animated.Value(1), []);
 
   // 1. Staggered Wave Dots
   useEffect(() => {

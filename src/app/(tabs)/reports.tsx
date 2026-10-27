@@ -48,7 +48,7 @@ export default function ReportsScreen() {
   }, [activeProfile, profileLoading, search, category]);
 
   useEffect(() => {
-    loadReports();
+    void Promise.resolve().then(loadReports);
   }, [loadReports, syncVersion]);
 
   useFocusEffect(useCallback(() => {

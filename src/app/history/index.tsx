@@ -85,7 +85,7 @@ export default function HistoryScreen() {
   }, [activeProfile, profileLoading]);
 
   useEffect(() => {
-    loadData();
+    void Promise.resolve().then(loadData);
   }, [loadData, syncVersion]);
 
   useFocusEffect(useCallback(() => {

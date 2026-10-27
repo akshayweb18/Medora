@@ -47,7 +47,7 @@ export default function MedicinesScreen() {
   }, [activeProfile, profileLoading, showArchived]);
 
   useEffect(() => {
-    loadMedicines();
+    void Promise.resolve().then(loadMedicines);
   }, [loadMedicines, syncVersion]);
 
   useFocusEffect(useCallback(() => {

@@ -49,7 +49,7 @@ export default function HealthScreen() {
   }, [activeProfile, profileLoading]);
 
   useEffect(() => {
-    loadData();
+    void Promise.resolve().then(loadData);
   }, [loadData, syncVersion]);
 
   useFocusEffect(useCallback(() => {
