@@ -151,7 +151,7 @@ export default function ReportDetailScreen() {
               <Text style={styles.aiBtnEmoji}>✨</Text>
               <View style={styles.aiBtnTextGroup}>
                 <Text style={styles.aiBtnTitle}>Analyze with Medora AI</Text>
-                <Text style={styles.aiBtnSub}>Gemini 3.8 Flash • Instant insights</Text>
+                <Text style={styles.aiBtnSub}>Gemini Medical AI • Instant insights</Text>
               </View>
               <Text style={styles.aiBtnArrow}>›</Text>
             </Gradient>

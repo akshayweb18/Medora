@@ -60,6 +60,8 @@ export interface AiReportAnalysis {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function uriToBase64(fileUri: string): Promise<string> {
+  if (!fileUri) throw new Error('File URI is empty');
+
   // If already a base64 data URI
   if (fileUri.startsWith('data:')) {
     const commaIdx = fileUri.indexOf(',');
@@ -77,27 +79,53 @@ async function uriToBase64(fileUri: string): Promise<string> {
         const commaIdx = result.indexOf(',');
         resolve(commaIdx !== -1 ? result.slice(commaIdx + 1) : result);
       };
-      reader.onerror = reject;
+      reader.onerror = () => reject(new Error('Failed reading remote file data'));
       reader.readAsDataURL(blob);
     });
   }
 
-  // Native environment — use expo-file-system/legacy per Expo SDK 54+ requirement
+  // Native environment: Strategy 1 — Legacy FileSystem
   try {
     const LegacyFileSystem = await import('expo-file-system/legacy');
-    const base64 = await LegacyFileSystem.readAsStringAsync(fileUri, {
-      encoding: LegacyFileSystem.EncodingType.Base64,
-    });
-    return base64;
+    if (LegacyFileSystem && typeof LegacyFileSystem.readAsStringAsync === 'function') {
+      const base64 = await LegacyFileSystem.readAsStringAsync(fileUri, {
+        encoding: LegacyFileSystem.EncodingType.Base64,
+      });
+      if (base64) return base64;
+    }
   } catch (err) {
-    console.warn('LegacyFileSystem read failed, attempting File API fallback:', err);
-    // Secondary fallback using File class
+    console.warn('LegacyFileSystem read failed, attempting File class fallback:', err);
+  }
+
+  // Native environment: Strategy 2 — File class API
+  try {
     const { File } = await import('expo-file-system');
     const file = new File(fileUri);
     if (typeof (file as unknown as { base64: () => Promise<string> }).base64 === 'function') {
-      return await (file as unknown as { base64: () => Promise<string> }).base64();
+      const b64 = await (file as unknown as { base64: () => Promise<string> }).base64();
+      if (b64) return b64;
     }
-    throw err;
+  } catch (err) {
+    console.warn('File class base64 failed, attempting fetch fallback:', err);
+  }
+
+  // Native environment: Strategy 3 — React Native fetch blob (works natively on file:// and content://)
+  try {
+    const res = await fetch(fileUri);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const commaIdx = result.indexOf(',');
+        resolve(commaIdx !== -1 ? result.slice(commaIdx + 1) : result);
+      };
+      reader.onerror = () => reject(new Error('FileReader failed converting file blob to base64'));
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.error('All base64 conversion strategies failed for fileUri:', fileUri, err);
+    throw new Error('Unable to read report document file.');
   }
 }
 
@@ -162,7 +190,7 @@ interface GeminiPart {
   };
 }
 
-async function callGemini(parts: GeminiPart[]): Promise<string> {
+async function callGemini(parts: GeminiPart[], options?: { jsonMode?: boolean }): Promise<string> {
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('Gemini API key is not configured. Please add EXPO_PUBLIC_GEMINI_API_KEY to your .env file.');
@@ -184,6 +212,7 @@ async function callGemini(parts: GeminiPart[]): Promise<string> {
             temperature: 0.2,
             topP: 0.8,
             maxOutputTokens: 4096,
+            ...(options?.jsonMode ? { responseMimeType: 'application/json' } : {}),
           },
           safetySettings: [
             { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -234,21 +263,47 @@ async function callGemini(parts: GeminiPart[]): Promise<string> {
   throw new Error(lastErrorMsg || 'Unable to connect to Gemini API models. Please check your connection.');
 }
 
-function parseAnalysis(raw: string): AiReportAnalysis {
-  let clean = raw.trim();
-  if (clean.startsWith('```')) {
-    clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+function extractJson(text: string): string {
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (codeBlockMatch) return codeBlockMatch[1].trim();
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return text.slice(firstBrace, lastBrace + 1).trim();
   }
+  return text.trim();
+}
+
+function parseAnalysis(raw: string, reportTitle?: string): AiReportAnalysis {
+  const clean = extractJson(raw);
   try {
-    return JSON.parse(clean) as AiReportAnalysis;
-  } catch {
+    const parsed = JSON.parse(clean) as Record<string, unknown>;
     return {
-      summary: clean.slice(0, 400),
-      keyFindings: [],
+      summary: typeof parsed.summary === 'string' ? parsed.summary : cleanAiMarkdown(raw).slice(0, 400),
+      keyFindings: Array.isArray(parsed.keyFindings) ? (parsed.keyFindings as string[]) : [],
+      testResults: Array.isArray(parsed.testResults) ? (parsed.testResults as AiTestResult[]) : [],
+      medicines: Array.isArray(parsed.medicines) ? (parsed.medicines as AiMedicineExtracted[]) : [],
+      warnings: Array.isArray(parsed.warnings) ? (parsed.warnings as string[]) : [],
+      recommendations: Array.isArray(parsed.recommendations) && parsed.recommendations.length > 0
+        ? (parsed.recommendations as string[])
+        : ['Please consult your doctor for interpretation of this report.'],
+      reportType: typeof parsed.reportType === 'string' ? parsed.reportType : (reportTitle || 'Medical Document'),
+      patientInfo: typeof parsed.patientInfo === 'object' && parsed.patientInfo !== null
+        ? (parsed.patientInfo as AiReportAnalysis['patientInfo'])
+        : undefined,
+      rawText: raw,
+    };
+  } catch (err) {
+    console.warn('parseAnalysis JSON parse failed on text:', clean.slice(0, 100), err);
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    const bullets = lines.filter(l => /^[*•-]|\d+\./.test(l)).map(l => l.replace(/^[*•-]\s*|\d+\.\s*/, ''));
+    return {
+      summary: cleanAiMarkdown(raw).slice(0, 400),
+      keyFindings: bullets.length > 0 ? bullets.slice(0, 5) : ['Report document reviewed.'],
       warnings: [],
-      recommendations: ['Please consult your doctor for interpretation of this report.'],
-      reportType: 'Medical Document',
-      rawText: clean,
+      recommendations: ['Please consult your physician for clinical interpretation of this report.'],
+      reportType: reportTitle || 'Medical Document',
+      rawText: raw,
     };
   }
 }
@@ -260,22 +315,42 @@ export async function analyzeReportWithAI(
   fileType: 'pdf' | 'image',
   reportTitle?: string,
   category?: string,
+  cloudinaryUrl?: string,
 ): Promise<AiReportAnalysis> {
-  const base64 = await uriToBase64(filePath);
-  const mimeType = getMimeType(filePath, fileType);
+  let base64: string | null = null;
+  const primaryUri = filePath || cloudinaryUrl || '';
+
+  if (primaryUri) {
+    try {
+      base64 = await uriToBase64(primaryUri);
+    } catch (e) {
+      console.warn('[Gemini] Primary uri base64 extraction failed:', e);
+      if (cloudinaryUrl && cloudinaryUrl !== primaryUri) {
+        try {
+          base64 = await uriToBase64(cloudinaryUrl);
+        } catch (cldErr) {
+          console.warn('[Gemini] Cloudinary URL fallback base64 extraction failed:', cldErr);
+        }
+      }
+    }
+  }
+
+  const mimeType = getMimeType(filePath || cloudinaryUrl || '', fileType);
 
   const contextHint = reportTitle
     ? `This document is titled "${reportTitle}"${category ? ` and categorized as "${category}"` : ''}.`
     : 'Please analyze the attached medical document.';
 
-  const parts: GeminiPart[] = [
-    { text: SYSTEM_PROMPT },
-    { inlineData: { mimeType, data: base64 } },
-    { text: contextHint },
-  ];
+  const parts: GeminiPart[] = [{ text: SYSTEM_PROMPT }];
 
-  const rawText = await callGemini(parts);
-  return parseAnalysis(rawText);
+  if (base64) {
+    parts.push({ inlineData: { mimeType, data: base64 } });
+  }
+
+  parts.push({ text: contextHint });
+
+  const rawText = await callGemini(parts, { jsonMode: true });
+  return parseAnalysis(rawText, reportTitle);
 }
 
 export function cleanAiMarkdown(text: string): string {

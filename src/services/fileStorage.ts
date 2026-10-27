@@ -131,9 +131,18 @@ export async function shareFile(filePath: string, fileType?: 'pdf' | 'image'): P
   await Sharing.shareAsync(filePath, { UTI: uti, mimeType });
 }
 
-/** Check if a file still exists. */
-export async function fileExists(filePath: string): Promise<boolean> {
+/** Check if a file still exists or is accessible. */
+export async function fileExists(filePath?: string): Promise<boolean> {
+  if (!filePath) return false;
   if (Platform.OS === 'web') return true;
+  if (
+    filePath.startsWith('http://') ||
+    filePath.startsWith('https://') ||
+    filePath.startsWith('data:') ||
+    filePath.startsWith('blob:')
+  ) {
+    return true;
+  }
   try {
     const file = new File(filePath);
     return file.exists;
