@@ -28,24 +28,27 @@ interface HistoryItem {
   route?: string;
 }
 
+let _cachedHistoryItems: HistoryItem[] = [];
+let _hasLoadedHistory = false;
+
 export default function HistoryScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
   const { syncVersion } = useAuth();
-  const [items, setItems] = useState<HistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<HistoryItem[]>(_cachedHistoryItems);
+  const [loading, setLoading] = useState(!_hasLoadedHistory);
   const [filter, setFilter] = useState<'all' | 'medicine' | 'report' | 'measurement'>('all');
 
-  const loadData = useCallback((isInitial = false) => {
+  const loadData = useCallback(async () => {
     if (!activeProfile) {
       if (!profileLoading) setLoading(false);
       return;
     }
-    if (isInitial) setLoading(true);
-    Promise.all([
-      getMedicinesByProfile(activeProfile.id, true),
-      getReportsByProfile(activeProfile.id),
-      getAllMeasurements(activeProfile.id, 50),
-    ]).then(([meds, reports, measurements]) => {
+    try {
+      const [meds, reports, measurements] = await Promise.all([
+        getMedicinesByProfile(activeProfile.id, true),
+        getReportsByProfile(activeProfile.id),
+        getAllMeasurements(activeProfile.id, 50),
+      ]);
       const all: HistoryItem[] = [
         ...meds.map(m => ({
           id: m.id, date: m.createdAt, type: 'medicine' as const,
@@ -71,17 +74,22 @@ export default function HistoryScreen() {
         }),
       ];
       all.sort((a, b) => b.date.localeCompare(a.date));
+      _cachedHistoryItems = all;
+      _hasLoadedHistory = true;
       setItems(all);
-    }).catch(console.error).finally(() => setLoading(false));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, [activeProfile, profileLoading]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadData(true);
+    loadData();
   }, [loadData, syncVersion]);
 
   useFocusEffect(useCallback(() => {
-    loadData(false);
+    loadData();
   }, [loadData]));
 
   const filtered = filter === 'all' ? items : items.filter(i => i.type === filter);
@@ -122,7 +130,7 @@ export default function HistoryScreen() {
         ))}
       </View>
 
-      {loading ? <LoadingState /> : (
+      {loading && items.length === 0 ? <LoadingState /> : (
         <FlatList
           data={filtered}
           keyExtractor={item => `${item.type}-${item.id}`}

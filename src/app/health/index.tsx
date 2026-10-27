@@ -15,37 +15,48 @@ import { LoadingState } from '@/components/ui/StateViews';
 import { formatDate } from '@/utils/date';
 import { BackButton } from '@/components/ui/BackButton';
 
+let _cachedLatest: Record<string, HealthMeasurement> = {};
+let _cachedHealthHistory: HealthMeasurement[] = [];
+let _hasLoadedHealth = false;
+
 export default function HealthScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
   const { syncVersion } = useAuth();
-  const [latest, setLatest] = useState<Record<string, HealthMeasurement>>({});
-  const [history, setHistory] = useState<HealthMeasurement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [latest, setLatest] = useState<Record<string, HealthMeasurement>>(_cachedLatest);
+  const [history, setHistory] = useState<HealthMeasurement[]>(_cachedHealthHistory);
+  const [loading, setLoading] = useState(!_hasLoadedHealth);
 
-  const loadData = useCallback((isInitial = false) => {
+  const loadData = useCallback(async () => {
     if (!activeProfile) {
       if (!profileLoading) setLoading(false);
       return;
     }
-    if (isInitial) setLoading(true);
-    Promise.all([
-      getLatestByType(activeProfile.id),
-      getAllMeasurements(activeProfile.id, 30),
-    ]).then(([l, h]) => { setLatest(l); setHistory(h); })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    try {
+      const [l, h] = await Promise.all([
+        getLatestByType(activeProfile.id),
+        getAllMeasurements(activeProfile.id, 30),
+      ]);
+      _cachedLatest = l;
+      _cachedHealthHistory = h;
+      _hasLoadedHealth = true;
+      setLatest(l);
+      setHistory(h);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, [activeProfile, profileLoading]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadData(true);
+    loadData();
   }, [loadData, syncVersion]);
 
   useFocusEffect(useCallback(() => {
-    loadData(false);
+    loadData();
   }, [loadData]));
 
-  if (loading) return <LoadingState />;
+  if (loading && history.length === 0) return <LoadingState />;
 
   const handleBack = () => {
     if (router.canGoBack()) {

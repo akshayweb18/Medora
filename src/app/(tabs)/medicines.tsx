@@ -17,33 +17,40 @@ import { Medicine } from '@/types';
 import { MedicineCard } from '@/components/medicine/MedicineCard';
 import { EmptyState, LoadingState } from '@/components/ui/StateViews';
 
+let _cachedMedicines: Medicine[] = [];
+let _hasLoadedMedicines = false;
+
 export default function MedicinesScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
   const { syncVersion } = useAuth();
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [medicines, setMedicines] = useState<Medicine[]>(_cachedMedicines);
+  const [loading, setLoading] = useState(!_hasLoadedMedicines);
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
 
-  const loadMedicines = useCallback((isInitial = false) => {
+  const loadMedicines = useCallback(async () => {
     if (!activeProfile) {
       if (!profileLoading) setLoading(false);
       return;
     }
-    if (isInitial) setLoading(true);
-    getMedicinesByProfile(activeProfile.id, showArchived)
-      .then(setMedicines)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    try {
+      const data = await getMedicinesByProfile(activeProfile.id, showArchived);
+      _cachedMedicines = data;
+      _hasLoadedMedicines = true;
+      setMedicines(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, [activeProfile, profileLoading, showArchived]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadMedicines(true);
+    loadMedicines();
   }, [loadMedicines, syncVersion]);
 
   useFocusEffect(useCallback(() => {
-    loadMedicines(false);
+    loadMedicines();
   }, [loadMedicines]));
 
   const filtered = medicines.filter(m =>
@@ -79,7 +86,7 @@ export default function MedicinesScreen() {
         </TouchableOpacity>
       </View>
 
-      {loading ? (
+      {loading && medicines.length === 0 ? (
         <LoadingState />
       ) : (
         <FlatList

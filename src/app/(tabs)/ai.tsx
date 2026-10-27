@@ -52,6 +52,8 @@ function getFormattedTime(): string {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+let _cachedAiReports: MedicalReport[] = [];
+
 export default function AiHubScreen() {
   const { activeProfile } = useProfile();
   const [activeTab, setActiveTab] = useState<'chat' | 'reports'>('chat');
@@ -70,17 +72,17 @@ export default function AiHubScreen() {
   const scrollRef = useRef<ScrollView>(null);
 
   // Reports State
-  const [reports, setReports] = useState<MedicalReport[]>([]);
+  const [reports, setReports] = useState<MedicalReport[]>(_cachedAiReports);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [selectedReport, setSelectedReport] = useState<MedicalReport | null>(null);
   const [selectedReportFileOk, setSelectedReportFileOk] = useState(false);
   const [aiModalVisible, setAiModalVisible] = useState(false);
 
-  const loadReports = useCallback(async (isInitial = false) => {
+  const loadReports = useCallback(async () => {
     if (!activeProfile) return;
-    if (isInitial) setReportsLoading(true);
     try {
       const data = await getReportsByProfile(activeProfile.id);
+      _cachedAiReports = data;
       setReports(data);
     } catch (e) {
       console.error('Failed to load reports in AI hub:', e);
@@ -91,7 +93,7 @@ export default function AiHubScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadReports(false);
+      loadReports();
     }, [loadReports])
   );
 

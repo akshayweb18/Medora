@@ -25,16 +25,25 @@ import { LoadingState } from '@/components/ui/StateViews';
 
 interface TodayDose { medicine: Medicine; time: ScheduledTime; scheduledFor: string; log?: DoseLog }
 
+interface CachedHomeData {
+  todayDoses: TodayDose[];
+  summary: { taken: number; upcoming: number; missed: number; total: number };
+  recentReports: MedicalReport[];
+  latestMetrics: Record<string, HealthMeasurement>;
+}
+
+let _cachedHomeData: CachedHomeData | null = null;
+
 export default function HomeScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
   const { user, syncVersion } = useAuth();
   const [imageError, setImageError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [todayDoses, setTodayDoses] = useState<TodayDose[]>([]);
-  const [summary, setSummary] = useState({ taken: 0, upcoming: 0, missed: 0, total: 0 });
-  const [recentReports, setRecentReports] = useState<MedicalReport[]>([]);
-  const [latestMetrics, setLatestMetrics] = useState<Record<string, HealthMeasurement>>({});
-  const [dataLoading, setDataLoading] = useState(true);
+  const [todayDoses, setTodayDoses] = useState<TodayDose[]>(_cachedHomeData?.todayDoses ?? []);
+  const [summary, setSummary] = useState(_cachedHomeData?.summary ?? { taken: 0, upcoming: 0, missed: 0, total: 0 });
+  const [recentReports, setRecentReports] = useState<MedicalReport[]>(_cachedHomeData?.recentReports ?? []);
+  const [latestMetrics, setLatestMetrics] = useState<Record<string, HealthMeasurement>>(_cachedHomeData?.latestMetrics ?? {});
+  const [dataLoading, setDataLoading] = useState(!_cachedHomeData);
 
   const loadData = useCallback(async () => {
     if (!activeProfile) {
@@ -65,6 +74,13 @@ export default function HomeScreen() {
         }
       }
       doses.sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));
+
+      _cachedHomeData = {
+        todayDoses: doses,
+        summary: sum,
+        recentReports: reports,
+        latestMetrics: metrics,
+      };
 
       setTodayDoses(doses);
       setSummary(sum);
@@ -110,7 +126,7 @@ export default function HomeScreen() {
     loadData();
   }, [activeProfile, loadData]);
 
-  if (profileLoading || dataLoading) return <LoadingState />;
+  if ((profileLoading || dataLoading) && !_cachedHomeData) return <LoadingState />;
 
   const upcomingDoses = todayDoses.filter(d => !d.log || d.log.status === 'upcoming' || d.log.status === 'snoozed');
   const nextDose = upcomingDoses.find(d => new Date(d.scheduledFor) > new Date());

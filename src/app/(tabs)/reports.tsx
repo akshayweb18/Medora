@@ -18,33 +18,40 @@ import { EmptyState, LoadingState } from '@/components/ui/StateViews';
 
 const FILTERS = [{ key: 'all', label: 'All', emoji: '📂' }, ...REPORT_CATEGORIES];
 
+let _cachedReports: MedicalReport[] = [];
+let _hasLoadedReports = false;
+
 export default function ReportsScreen() {
   const { activeProfile, loading: profileLoading } = useProfile();
   const { syncVersion } = useAuth();
-  const [reports, setReports] = useState<MedicalReport[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState<MedicalReport[]>(_cachedReports);
+  const [loading, setLoading] = useState(!_hasLoadedReports);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
 
-  const loadReports = useCallback((isInitial = false) => {
+  const loadReports = useCallback(async () => {
     if (!activeProfile) {
       if (!profileLoading) setLoading(false);
       return;
     }
-    if (isInitial) setLoading(true);
-    getReportsByProfile(activeProfile.id, search, category)
-      .then(setReports)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    try {
+      const data = await getReportsByProfile(activeProfile.id, search, category);
+      _cachedReports = data;
+      _hasLoadedReports = true;
+      setReports(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, [activeProfile, profileLoading, search, category]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadReports(true);
+    loadReports();
   }, [loadReports, syncVersion]);
 
   useFocusEffect(useCallback(() => {
-    loadReports(false);
+    loadReports();
   }, [loadReports]));
 
   return (
@@ -112,7 +119,7 @@ export default function ReportsScreen() {
         ))}
       </ScrollView>
 
-      {loading ? (
+      {loading && reports.length === 0 ? (
         <LoadingState />
       ) : (
         <FlatList
