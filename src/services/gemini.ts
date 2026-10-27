@@ -411,17 +411,42 @@ export function getOfflineMedicalGuidance(query: string): string {
   if (lower.includes('food') || lower.includes('avoid') || lower.includes('pressure') || lower.includes('bp')) {
     return 'When managing blood pressure and taking hypertension medications:\n\n• Avoid high-sodium foods, canned soups, and salty snacks, as salt directly increases blood pressure.\n• If you are taking ACE inhibitors or ARBs, moderate potassium-rich salt substitutes.\n• Avoid grapefruit and grapefruit juice if taking calcium channel blockers (e.g. Amlodipine).\n• Limit caffeine and alcohol intake and drink adequate water daily.';
   }
+  if (lower.includes('report') || lower.includes('test') || lower.includes('dikh') || lower.includes('pdf')) {
+    return 'I have checked your saved medical records. Your report cards are displayed directly below with options to view the original PDF document or run a detailed clinical AI analysis.\n\n• Always review specific lab values and diagnostic ranges with your doctor.\n• You can tap on any report below to inspect the findings in full detail.';
+  }
   return 'Here is general medical guidance for your question:\n\n• Always follow the dosage, timing, and storage instructions on your prescription package.\n• Do not alter, pause, or stop prescribed medications without consulting your prescribing doctor.\n• If you notice any unusual side effects (such as rash, swelling, or nausea), notify your healthcare provider.\n• For any urgent symptoms or chest discomfort, seek immediate medical attention.';
+}
+
+export interface ReportSummaryItem {
+  id: string;
+  title: string;
+  fileType: 'pdf' | 'image';
+  category: string;
+  documentDate: string;
+  doctorOrHospital?: string;
+  notes?: string;
 }
 
 export async function askGeneralMedicalAI(
   question: string,
   history: { role: 'user' | 'ai'; text: string }[] = [],
+  userReports: ReportSummaryItem[] = [],
 ): Promise<string> {
   const historyText = history
     .slice(-6)
     .map(h => `${h.role === 'user' ? 'User' : 'Medora AI'}: ${h.text}`)
     .join('\n');
+
+  const reportsContext = userReports.length > 0
+    ? `\nPATIENT'S SAVED MEDICAL REPORTS IN VAULT (${userReports.length} available):
+${userReports.map((r, i) => `[Report ${i + 1}] Title: "${r.title}" | File Type: ${r.fileType.toUpperCase()} | Category: ${r.category} | Date: ${r.documentDate} | Doctor/Clinic: ${r.doctorOrHospital || 'N/A'}${r.notes ? ` | Notes: "${r.notes}"` : ''}`).join('\n')}
+
+INSTRUCTIONS REGARDING REPORTS:
+- If the user asks about their reports, tests, medical documents, past checkups, or PDFs/scans (e.g. "meri report dikhao", "show my reports", "what did my blood test say?", "do I have any reports?", "check my prescription"):
+  1. Acknowledge and reference their specific reports by exact title, date, and category.
+  2. Provide a helpful clinical summary of what those tests or categories entail.
+  3. Inform them that their interactive report cards are attached directly below this response, where they can tap to view the original PDF/image or run a full AI analysis!`
+    : '\nPATIENT HAS NO SAVED REPORTS IN THE VAULT YET. If they ask about their reports or documents, kindly let them know they can upload PDFs or images via the "+ Upload" button or the "Analyze Reports" tab.';
 
   const prompt = `You are Medora AI, a compassionate, helpful, and accurate medical health assistant powered by Google Gemini.
 Your role:
@@ -435,6 +460,8 @@ FORMATTING RULES:
 - Do NOT use markdown bold asterisks like **word**.
 - For lists, use the round bullet symbol • instead of * or -.
 - Write in clean, beautifully readable paragraphs.
+
+${reportsContext}
 
 Previous conversation:
 ${historyText || 'None'}

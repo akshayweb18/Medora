@@ -29,6 +29,7 @@ import { fileExists } from '@/services/fileStorage';
 import { formatDate } from '@/utils/date';
 
 import { AiThinkingBubble } from '@/components/ai/AiThinkingBubble';
+import { ChatReportCard } from '@/components/ai/ChatReportCard';
 
 interface ChatMessage {
   id: string;
@@ -37,11 +38,13 @@ interface ChatMessage {
   time: string;
   isError?: boolean;
   retryText?: string;
+  attachedReports?: MedicalReport[];
 }
 
 const QUICK_PROMPTS = [
-  '💊 Can I take Paracetamol with Ibuprofen?',
+  '📄 Show my saved reports & PDFs',
   '🩸 What does high ESR indicate?',
+  '💊 Can I take Paracetamol with Ibuprofen?',
   '⏰ What if I miss my morning dose?',
   '🥗 Foods to avoid with blood pressure meds?',
 ];
@@ -67,12 +70,14 @@ export default function AiHubScreen() {
     {
       id: 'welcome',
       role: 'ai',
-      text: 'Hello! I am Medora AI, your personal health assistant powered by Google Gemini Medical AI. You can ask me any questions about medications, symptoms, lab test results, or general wellness. How can I help you today?',
+      text: 'Hello! I am Medora AI, your personal health assistant powered by Google Gemini Medical AI. You can ask me any questions about medications, symptoms, lab test results, or ask me to show and review your saved reports & PDFs. How can I help you today?',
       time: 'Just now',
     },
   ]);
   const [inputText, setInputText] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [selectedReportForChat, setSelectedReportForChat] = useState<MedicalReport | null>(null);
+  const [showReportPicker, setShowReportPicker] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   // Reports State
@@ -106,6 +111,10 @@ export default function AiHubScreen() {
     if (!text || chatLoading) return;
 
     setInputText('');
+    const attachedReport = selectedReportForChat;
+    setSelectedReportForChat(null);
+    setShowReportPicker(false);
+
     const now = getFormattedTime();
     const userMsg: ChatMessage = {
       id: createMessageId(),
@@ -123,15 +132,56 @@ export default function AiHubScreen() {
     }, 80);
 
     try {
+      // Check if user specifically attached a report OR asked about reports in their question
+      const isAskingAboutReports =
+        !!attachedReport ||
+        /report|test|result|prescription|lab|scan|mri|x-ray|blood|cbc|doctor|dikh|batao|check|pdf/i.test(
+          text
+        );
+
+      let matchingReports: MedicalReport[] = [];
+      if (attachedReport) {
+        matchingReports = [attachedReport];
+      } else if (isAskingAboutReports && reports.length > 0) {
+        // Find matching reports by title or category if specified, else provide latest reports
+        const lowerText = text.toLowerCase();
+        const keywordMatches = reports.filter(
+          r =>
+            lowerText.includes(r.title.toLowerCase()) ||
+            lowerText.includes(r.category.toLowerCase()) ||
+            (r.doctorOrHospital && lowerText.includes(r.doctorOrHospital.toLowerCase()))
+        );
+
+        if (keywordMatches.length > 0) {
+          matchingReports = keywordMatches;
+        } else {
+          // General report request (e.g., "show my reports", "pdf dikhao", "meri test report") -> show up to 3 latest reports
+          matchingReports = reports.slice(0, 3);
+        }
+      }
+
+      const reportSummaries = reports.map(r => ({
+        id: r.id,
+        title: r.title,
+        category: r.category,
+        documentDate: r.documentDate,
+        fileType: r.fileType,
+        doctorOrHospital: r.doctorOrHospital,
+        notes: r.notes,
+      }));
+
       const aiReply = await askGeneralMedicalAI(
         text,
-        chatMessages.map(m => ({ role: m.role, text: m.text }))
+        chatMessages.map(m => ({ role: m.role, text: m.text })),
+        reportSummaries
       );
+
       const aiMsg: ChatMessage = {
         id: createMessageId(),
         role: 'ai',
         text: aiReply,
         time: getFormattedTime(),
+        attachedReports: matchingReports.length > 0 ? matchingReports : undefined,
       };
       setChatMessages(prev => [...prev, aiMsg]);
     } catch (err: unknown) {
@@ -273,6 +323,24 @@ export default function AiHubScreen() {
                       msg.role === 'user' ? styles.userMsgText : styles.aiMsgText,
                     ]}
                   />
+
+                  {/* Attached Reports / Scans / PDFs in AI response */}
+                  {msg.attachedReports && msg.attachedReports.length > 0 && (
+                    <View style={styles.chatReportsContainer}>
+                      <Text style={styles.chatReportsHeader}>
+                        📄 Attached Health Reports ({msg.attachedReports.length})
+                      </Text>
+                      {msg.attachedReports.map(rep => (
+                        <ChatReportCard
+                          key={rep.id}
+                          report={rep}
+                          onView={() => router.push(`/reports/${rep.id}`)}
+                          onAnalyze={() => handleAnalyzeReport(rep)}
+                        />
+                      ))}
+                    </View>
+                  )}
+
                   {msg.isError && msg.retryText && (
                     <TouchableOpacity
                       style={styles.retryBtn}
@@ -300,8 +368,92 @@ export default function AiHubScreen() {
             <View style={{ height: Spacing[4] }} />
           </ScrollView>
 
+          {/* Attached report chip above input bar */}
+          {selectedReportForChat && (
+            <View style={styles.attachedBanner}>
+              <View style={styles.attachedLeft}>
+                <Text style={styles.attachedEmoji}>
+                  {selectedReportForChat.fileType === 'pdf' ? '📄' : '🖼️'}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.attachedLabel}>Asking specifically about:</Text>
+                  <Text style={styles.attachedTitle} numberOfLines={1}>
+                    {selectedReportForChat.title}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setSelectedReportForChat(null)}
+                style={styles.attachedRemoveBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.attachedRemoveText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Report Picker drawer when paperclip is pressed */}
+          {showReportPicker && (
+            <View style={styles.reportPickerBox}>
+              <View style={styles.reportPickerHeader}>
+                <Text style={styles.reportPickerTitle}>📎 Select Report to Ask About</Text>
+                <TouchableOpacity onPress={() => setShowReportPicker(false)}>
+                  <Text style={styles.reportPickerClose}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              {reports.length === 0 ? (
+                <Text style={styles.pickerEmptyText}>No reports found in your vault.</Text>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.pickerScroll}
+                >
+                  {reports.map(rep => {
+                    const isSelected = selectedReportForChat?.id === rep.id;
+                    return (
+                      <TouchableOpacity
+                        key={rep.id}
+                        style={[styles.pickerChip, isSelected && styles.pickerChipActive]}
+                        onPress={() => {
+                          setSelectedReportForChat(isSelected ? null : rep);
+                          setShowReportPicker(false);
+                        }}
+                      >
+                        <Text style={styles.pickerChipEmoji}>
+                          {rep.fileType === 'pdf' ? '📄' : '🖼️'}
+                        </Text>
+                        <View style={{ maxWidth: 140 }}>
+                          <Text style={styles.pickerChipTitle} numberOfLines={1}>
+                            {rep.title}
+                          </Text>
+                          <Text style={styles.pickerChipDate}>
+                            {formatDate(rep.documentDate)}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+          )}
+
           {/* Chat Input Bar */}
           <View style={styles.inputBar}>
+            <TouchableOpacity
+              style={[
+                styles.attachBtn,
+                (showReportPicker || !!selectedReportForChat) && styles.attachBtnActive,
+              ]}
+              onPress={() => setShowReportPicker(prev => !prev)}
+              disabled={chatLoading}
+              activeOpacity={0.7}
+              accessibilityLabel="Attach report to chat"
+            >
+              <Text style={styles.attachBtnIcon}>📎</Text>
+            </TouchableOpacity>
+
             <TextInput
               style={styles.textInput}
               placeholder={chatLoading ? 'Medora AI is thinking…' : 'Ask about medications, tests, health…'}
@@ -583,6 +735,135 @@ const styles = StyleSheet.create({
   userMsgTime: { color: '#ffffffaa' },
   aiMsgTime: { color: Colors.textDisabled },
 
+  // Chat Report Attachments
+  chatReportsContainer: {
+    marginTop: Spacing[2],
+    paddingTop: Spacing[2],
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  chatReportsHeader: {
+    fontSize: Typography.xs,
+    fontWeight: Typography.semibold,
+    color: Colors.textSecondary,
+    marginBottom: Spacing[2],
+    letterSpacing: 0.2,
+  },
+
+  // Attached Document Pre-send Banner
+  attachedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    borderTopWidth: 1,
+    borderTopColor: '#BFDBFE',
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[2],
+  },
+  attachedLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+    flex: 1,
+    marginRight: Spacing[2],
+  },
+  attachedEmoji: {
+    fontSize: 20,
+  },
+  attachedLabel: {
+    fontSize: 10,
+    color: '#1D4ED8',
+    fontWeight: Typography.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  attachedTitle: {
+    fontSize: Typography.xs,
+    fontWeight: Typography.bold,
+    color: '#1E3A8A',
+  },
+  attachedRemoveBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachedRemoveText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#1D4ED8',
+  },
+
+  // Report Picker Drawer
+  reportPickerBox: {
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: Spacing[3],
+    paddingBottom: Spacing[2],
+    ...Shadows.md,
+  },
+  reportPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing[4],
+    marginBottom: Spacing[2],
+  },
+  reportPickerTitle: {
+    fontSize: Typography.xs,
+    fontWeight: Typography.bold,
+    color: Colors.textPrimary,
+  },
+  reportPickerClose: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.textSecondary,
+    padding: 2,
+  },
+  pickerEmptyText: {
+    fontSize: Typography.xs,
+    color: Colors.textSecondary,
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[2],
+  },
+  pickerScroll: {
+    paddingHorizontal: Spacing[4],
+    gap: Spacing[2],
+    paddingBottom: Spacing[1],
+  },
+  pickerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[2],
+    borderRadius: Radius.lg,
+  },
+  pickerChipActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  pickerChipEmoji: {
+    fontSize: 18,
+  },
+  pickerChipTitle: {
+    fontSize: Typography.xs,
+    fontWeight: Typography.semibold,
+    color: Colors.textPrimary,
+  },
+  pickerChipDate: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    marginTop: 1,
+  },
+
   // Input Bar
   inputBar: {
     flexDirection: 'row',
@@ -592,6 +873,23 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border,
     alignItems: 'center',
     gap: Spacing[2],
+  },
+  attachBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachBtnActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  attachBtnIcon: {
+    fontSize: 18,
   },
   textInput: {
     flex: 1,
