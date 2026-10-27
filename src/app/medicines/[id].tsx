@@ -13,7 +13,8 @@ import { getDoseLogsByMedicine } from '@/db/doses';
 import { cancelMedicineNotifications } from '@/services/notifications';
 import { Medicine, DoseLog } from '@/types';
 import { Badge } from '@/components/ui/Badge';
-import { LoadingState, ErrorState } from '@/components/ui/StateViews';
+import { ErrorState } from '@/components/ui/StateViews';
+import { DetailSkeleton } from '@/components/ui/Skeleton';
 import { formatDate, formatTime, relativeDate } from '@/utils/date';
 import { confirmAction } from '@/utils/confirm';
 import { BackButton } from '@/components/ui/BackButton';
@@ -68,7 +69,7 @@ export default function MedicineDetailScreen() {
     });
   };
 
-  if (loading) return <LoadingState />;
+  if (loading) return <DetailSkeleton />;
   if (!medicine) return <ErrorState message="Medicine not found." />;
 
   const takenCount = logs.filter(l => l.status === 'taken').length;

@@ -13,7 +13,7 @@ import { useAuth } from '@/store/authStore';
 import { getMedicinesByProfile } from '@/db/medicines';
 import { getReportsByProfile } from '@/db/reports';
 import { getAllMeasurements } from '@/db/measurements';
-import { LoadingState } from '@/components/ui/StateViews';
+import { GenericListSkeleton } from '@/components/ui/Skeleton';
 import { formatDate } from '@/utils/date';
 import { BackButton } from '@/components/ui/BackButton';
 
@@ -130,7 +130,7 @@ export default function HistoryScreen() {
         ))}
       </View>
 
-      {loading && items.length === 0 ? <LoadingState /> : (
+      {loading && items.length === 0 ? <GenericListSkeleton /> : (
         <FlatList
           data={filtered}
           keyExtractor={item => `${item.type}-${item.id}`}

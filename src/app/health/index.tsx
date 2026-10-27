@@ -11,7 +11,7 @@ import { useProfile } from '@/store/profileStore';
 import { useAuth } from '@/store/authStore';
 import { getAllMeasurements, getLatestByType } from '@/db/measurements';
 import { HealthMeasurement } from '@/types';
-import { LoadingState } from '@/components/ui/StateViews';
+import { GenericListSkeleton } from '@/components/ui/Skeleton';
 import { formatDate } from '@/utils/date';
 import { BackButton } from '@/components/ui/BackButton';
 
@@ -56,7 +56,7 @@ export default function HealthScreen() {
     loadData();
   }, [loadData]));
 
-  if (loading && history.length === 0) return <LoadingState />;
+  if (loading && history.length === 0) return <GenericListSkeleton />;
 
   const handleBack = () => {
     if (router.canGoBack()) {

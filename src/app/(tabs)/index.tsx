@@ -21,7 +21,7 @@ import { Medicine, DoseLog, MedicalReport, HealthMeasurement, ScheduledTime } fr
 import { todayStr, formatTodayFull, scheduledDateTime, isMedicineActiveOnDate, formatTime, nowISO } from '@/utils/date';
 import { DoseItem } from '@/components/medicine/MedicineCard';
 import { ReportCard } from '@/components/reports/ReportCard';
-import { LoadingState } from '@/components/ui/StateViews';
+import { HomeSkeleton } from '@/components/ui/Skeleton';
 
 interface TodayDose { medicine: Medicine; time: ScheduledTime; scheduledFor: string; log?: DoseLog }
 
@@ -126,7 +126,7 @@ export default function HomeScreen() {
     loadData();
   }, [activeProfile, loadData]);
 
-  if ((profileLoading || dataLoading) && !_cachedHomeData) return <LoadingState />;
+  if ((profileLoading || dataLoading) && !_cachedHomeData) return <HomeSkeleton />;
 
   const upcomingDoses = todayDoses.filter(d => !d.log || d.log.status === 'upcoming' || d.log.status === 'snoozed');
   const nextDose = upcomingDoses.find(d => new Date(d.scheduledFor) > new Date());

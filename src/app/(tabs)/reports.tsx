@@ -14,7 +14,8 @@ import { useAuth } from '@/store/authStore';
 import { getReportsByProfile } from '@/db/reports';
 import { MedicalReport } from '@/types';
 import { ReportCard } from '@/components/reports/ReportCard';
-import { EmptyState, LoadingState } from '@/components/ui/StateViews';
+import { EmptyState } from '@/components/ui/StateViews';
+import { ReportsSkeleton } from '@/components/ui/Skeleton';
 
 const FILTERS = [{ key: 'all', label: 'All', emoji: '📂' }, ...REPORT_CATEGORIES];
 
@@ -120,7 +121,7 @@ export default function ReportsScreen() {
       </ScrollView>
 
       {loading && reports.length === 0 ? (
-        <LoadingState />
+        <ReportsSkeleton />
       ) : (
         <FlatList
           data={reports}

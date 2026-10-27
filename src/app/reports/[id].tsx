@@ -7,7 +7,8 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Gradient } from '@/components/ui/Gradient';
 
-import { ErrorState, LoadingState } from '@/components/ui/StateViews';
+import { ErrorState } from '@/components/ui/StateViews';
+import { DetailSkeleton } from '@/components/ui/Skeleton';
 import { Colors, Radius, REPORT_CATEGORIES, Shadows, Spacing, Typography } from '@/constants/theme';
 import { deleteReport, getReportById } from '@/db/reports';
 import { deleteReportFile, fileExists } from '@/services/fileStorage';
@@ -55,7 +56,7 @@ export default function ReportDetailScreen() {
     });
   };
 
-  if (loading) return <LoadingState />;
+  if (loading) return <DetailSkeleton />;
   if (!report) return <ErrorState message="Report not found." />;
 
   const cat = REPORT_CATEGORIES.find(c => c.key === report.category);

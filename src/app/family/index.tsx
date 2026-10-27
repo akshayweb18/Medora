@@ -10,7 +10,7 @@ import { Colors, Typography, Spacing, Radius, Shadows } from '@/constants/theme'
 import { useProfile } from '@/store/profileStore';
 import { getAllProfiles, deleteProfile } from '@/db/profiles';
 import { Profile } from '@/types';
-import { LoadingState } from '@/components/ui/StateViews';
+import { GenericListSkeleton } from '@/components/ui/Skeleton';
 import { confirmAction } from '@/utils/confirm';
 import { BackButton } from '@/components/ui/BackButton';
 
@@ -74,7 +74,7 @@ export default function FamilyScreen() {
         </TouchableOpacity>
       </View>
 
-      {loading ? <LoadingState /> : (
+      {loading ? <GenericListSkeleton /> : (
         <FlatList
           data={profiles}
           keyExtractor={p => p.id}

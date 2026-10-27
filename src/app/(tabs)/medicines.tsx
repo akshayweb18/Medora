@@ -15,7 +15,8 @@ import { useAuth } from '@/store/authStore';
 import { getMedicinesByProfile } from '@/db/medicines';
 import { Medicine } from '@/types';
 import { MedicineCard } from '@/components/medicine/MedicineCard';
-import { EmptyState, LoadingState } from '@/components/ui/StateViews';
+import { EmptyState } from '@/components/ui/StateViews';
+import { MedicinesSkeleton } from '@/components/ui/Skeleton';
 
 let _cachedMedicines: Medicine[] = [];
 let _hasLoadedMedicines = false;
@@ -87,7 +88,7 @@ export default function MedicinesScreen() {
       </View>
 
       {loading && medicines.length === 0 ? (
-        <LoadingState />
+        <MedicinesSkeleton />
       ) : (
         <FlatList
           data={filtered}
