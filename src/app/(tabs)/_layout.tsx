@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
-import { Text, StyleSheet, Animated, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, Pressable, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Radius } from '@/constants/theme';
@@ -8,31 +8,9 @@ import { Colors, Typography, Radius } from '@/constants/theme';
 function SmoothTabBarButton({
   children,
   onPress,
-  onPressIn,
-  onPressOut,
   style,
   ...rest
 }: any) {
-  const [scale] = useState(() => new Animated.Value(1));
-
-  const handlePressIn = (e: any) => {
-    Animated.timing(scale, {
-      toValue: 0.92,
-      duration: 70,
-      useNativeDriver: true,
-    }).start();
-    onPressIn?.(e);
-  };
-
-  const handlePressOut = (e: any) => {
-    Animated.timing(scale, {
-      toValue: 1,
-      duration: 100,
-      useNativeDriver: true,
-    }).start();
-    onPressOut?.(e);
-  };
-
   const handlePress = (e: any) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -41,18 +19,20 @@ function SmoothTabBarButton({
   };
 
   return (
-    <Animated.View style={[styles.tabBarItem, { transform: [{ scale }] }]}>
+    <View style={styles.tabBarItem}>
       <Pressable
         {...rest}
         onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
         android_ripple={{ color: Colors.primary + '18', borderless: true, radius: 28 }}
-        style={[style, styles.tabBarButton]}
+        style={({ pressed }) => [
+          style,
+          styles.tabBarButton,
+          pressed && { opacity: 0.8 },
+        ]}
       >
         {children}
       </Pressable>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -123,6 +103,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         animation: 'none',
+        lazy: false,
         tabBarButton: (props) => <SmoothTabBarButton {...props} />,
         tabBarStyle: [
           styles.tabBar,
