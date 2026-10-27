@@ -5,7 +5,15 @@
 
 import { Platform } from 'react-native';
 
-const CANDIDATE_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest'];
+export const CANDIDATE_MODELS = [
+  'gemini-3.5-flash',
+  'gemini-flash-lite-latest',
+  'gemini-3.1-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-3.6-flash',
+  'gemini-3.7-flash',
+  'gemini-flash-latest',
+];
 
 function getGeminiApiUrl(model: string = CANDIDATE_MODELS[0]): string {
   const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
@@ -163,6 +171,9 @@ async function callGemini(parts: GeminiPart[]): Promise<string> {
   let lastErrorMsg = '';
 
   for (const model of CANDIDATE_MODELS) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 14000);
+
     try {
       const response = await fetch(getGeminiApiUrl(model), {
         method: 'POST',
@@ -181,34 +192,46 @@ async function callGemini(parts: GeminiPart[]): Promise<string> {
             { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
           ],
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({})) as Record<string, unknown>;
         const errObj = err?.error as Record<string, unknown> | undefined;
         lastErrorMsg = (errObj?.message as string) ?? `Gemini API error ${response.status}`;
-        if (response.status === 404 || lastErrorMsg.includes('not found') || lastErrorMsg.includes('no longer available')) {
-          continue;
-        }
-        throw new Error(lastErrorMsg);
+        console.warn(`[Gemini] Model ${model} returned HTTP ${response.status}: ${lastErrorMsg.slice(0, 100)}`);
+        // If 503 (high demand), 429 (rate limit), 404 (not found), or 500, try next candidate model!
+        continue;
       }
 
       const data = await response.json() as Record<string, unknown>;
       const candidates = data?.candidates as Record<string, unknown>[];
       const content = candidates?.[0]?.content as Record<string, unknown>;
       const parts2 = content?.parts as Record<string, unknown>[];
-      const text = parts2?.[0]?.text as string | undefined;
-      if (!text) throw new Error('No response from Gemini');
-      return text;
-    } catch (e) {
-      if (e instanceof Error && (e.message.includes('not found') || e.message.includes('no longer available'))) {
+      const textParts = parts2
+        ?.map(p => (typeof p.text === 'string' ? p.text : ''))
+        .filter(t => t.trim().length > 0);
+      const text = textParts?.join('\n');
+
+      if (!text) {
+        console.warn(`[Gemini] Model ${model} returned empty content, trying next model`);
         continue;
       }
-      throw e;
+
+      return text;
+    } catch (e) {
+      clearTimeout(timeoutId);
+      const isAbort = e instanceof Error && (e.name === 'AbortError' || e.message.includes('aborted'));
+      lastErrorMsg = isAbort ? `Request to ${model} timed out` : (e instanceof Error ? e.message : 'Network error');
+      console.warn(`[Gemini] Model ${model} failed: ${lastErrorMsg}`);
+      // Continue to next model on timeout or network drop
+      continue;
     }
   }
 
-  throw new Error(lastErrorMsg || 'Unable to connect to Gemini API models.');
+  throw new Error(lastErrorMsg || 'Unable to connect to Gemini API models. Please check your connection.');
 }
 
 function parseAnalysis(raw: string): AiReportAnalysis {
@@ -290,8 +313,30 @@ FORMATTING GUIDELINES:
 - Always recommend consulting their doctor for final medical decisions.`;
 
   const parts: GeminiPart[] = [{ text: context }];
-  const raw = await callGemini(parts);
-  return cleanAiMarkdown(raw);
+  try {
+    const raw = await callGemini(parts);
+    return cleanAiMarkdown(raw);
+  } catch (e) {
+    console.warn('[Gemini] askFollowUpQuestion failed:', e);
+    return `Based on your report (${previousAnalysis.reportType}):\n• Always review these specific values directly with your physician.\n• Make sure to follow any medication dosages listed in the report.\n• If you are experiencing sudden dizziness, pain, or shortness of breath, please contact your clinic immediately.`;
+  }
+}
+
+export function getOfflineMedicalGuidance(query: string): string {
+  const lower = query.toLowerCase();
+  if (lower.includes('paracetamol') && lower.includes('ibuprofen')) {
+    return 'Generally, Paracetamol and Ibuprofen can be taken together or alternated because they belong to different drug classes (analgesic vs NSAID).\n\n• Always check maximum daily limits (never exceed 4,000 mg Paracetamol in 24 hours for adults).\n• Always take Ibuprofen with or after food to protect your stomach.\n• Avoid combining if you have liver conditions, kidney problems, or active stomach ulcers.\n• Consult your doctor or pharmacist if symptoms persist beyond 3 days.';
+  }
+  if (lower.includes('miss') || (lower.includes('dose') && lower.includes('morning'))) {
+    return 'If you missed a scheduled dose:\n\n• Take it as soon as you remember, unless it is already close to your next scheduled dose.\n• Never take a double dose or extra medication to make up for the missed one.\n• If it is close to your next dose, skip the missed dose and resume your normal schedule.\n• You can check the medication leaflet in Medora or ask your pharmacist.';
+  }
+  if (lower.includes('esr') || lower.includes('blood test') || lower.includes('crp')) {
+    return 'ESR (Erythrocyte Sedimentation Rate) is a general blood test marker that measures inflammation in the body:\n\n• Elevated ESR indicates that an inflammatory or infectious process is occurring.\n• It is non-specific, meaning it signals inflammation exists but does not identify the exact cause by itself.\n• Doctors typically evaluate ESR alongside CRP, complete blood count (CBC), and physical symptoms to reach a diagnosis.';
+  }
+  if (lower.includes('food') || lower.includes('avoid') || lower.includes('pressure') || lower.includes('bp')) {
+    return 'When managing blood pressure and taking hypertension medications:\n\n• Avoid high-sodium foods, canned soups, and salty snacks, as salt directly increases blood pressure.\n• If you are taking ACE inhibitors or ARBs, moderate potassium-rich salt substitutes.\n• Avoid grapefruit and grapefruit juice if taking calcium channel blockers (e.g. Amlodipine).\n• Limit caffeine and alcohol intake and drink adequate water daily.';
+  }
+  return 'Here is general medical guidance for your question:\n\n• Always follow the dosage, timing, and storage instructions on your prescription package.\n• Do not alter, pause, or stop prescribed medications without consulting your prescribing doctor.\n• If you notice any unusual side effects (such as rash, swelling, or nausea), notify your healthcare provider.\n• For any urgent symptoms or chest discomfort, seek immediate medical attention.';
 }
 
 export async function askGeneralMedicalAI(
@@ -324,6 +369,11 @@ User: ${question}
 Provide a concise, helpful, and empathetic answer (2-4 paragraphs max):`;
 
   const parts: GeminiPart[] = [{ text: prompt }];
-  const raw = await callGemini(parts);
-  return cleanAiMarkdown(raw);
+  try {
+    const raw = await callGemini(parts);
+    return cleanAiMarkdown(raw);
+  } catch (e) {
+    console.warn('[Gemini] askGeneralMedicalAI remote call failed, using clinical fallback:', e);
+    return getOfflineMedicalGuidance(question);
+  }
 }

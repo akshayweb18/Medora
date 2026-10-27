@@ -28,11 +28,15 @@ import { FormattedAiText } from '@/components/ui/FormattedAiText';
 import { fileExists } from '@/services/fileStorage';
 import { formatDate } from '@/utils/date';
 
+import { AiThinkingBubble } from '@/components/ai/AiThinkingBubble';
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'ai';
   text: string;
   time: string;
+  isError?: boolean;
+  retryText?: string;
 }
 
 const QUICK_PROMPTS = [
@@ -63,7 +67,7 @@ export default function AiHubScreen() {
     {
       id: 'welcome',
       role: 'ai',
-      text: 'Hello! I am Medora AI, your personal health assistant powered by Google Gemini 3.8 Flash. You can ask me any questions about medications, symptoms, lab test results, or general wellness. How can I help you today?',
+      text: 'Hello! I am Medora AI, your personal health assistant powered by Google Gemini Medical AI. You can ask me any questions about medications, symptoms, lab test results, or general wellness. How can I help you today?',
       time: 'Just now',
     },
   ]);
@@ -116,7 +120,7 @@ export default function AiHubScreen() {
 
     setTimeout(() => {
       scrollRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    }, 80);
 
     try {
       const aiReply = await askGeneralMedicalAI(
@@ -131,19 +135,21 @@ export default function AiHubScreen() {
       };
       setChatMessages(prev => [...prev, aiMsg]);
     } catch (err: unknown) {
-      const errorText = err instanceof Error ? err.message : 'Unable to connect to Medora AI. Please try again.';
+      console.warn('AI general chat error:', err);
       const errorMsg: ChatMessage = {
         id: createMessageId(),
         role: 'ai',
-        text: `⚠️ ${errorText}`,
+        text: 'I had trouble connecting to the medical network. Please verify your connection or tap below to retry.',
         time: getFormattedTime(),
+        isError: true,
+        retryText: text,
       };
       setChatMessages(prev => [...prev, errorMsg]);
     } finally {
       setChatLoading(false);
       setTimeout(() => {
         scrollRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      }, 120);
     }
   };
 
@@ -169,7 +175,7 @@ export default function AiHubScreen() {
           </View>
           <View style={styles.modelPill}>
             <View style={styles.onlineDot} />
-            <Text style={styles.modelText}>Gemini 3.8 Flash</Text>
+            <Text style={styles.modelText}>Gemini Medical AI</Text>
           </View>
         </View>
         <Text style={styles.heroTitle}>Health & Report AI</Text>
@@ -212,6 +218,11 @@ export default function AiHubScreen() {
             style={styles.chatScroll}
             contentContainerStyle={styles.chatScrollContent}
             showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => {
+              if (chatLoading) {
+                scrollRef.current?.scrollToEnd({ animated: true });
+              }
+            }}
           >
             {/* Quick Prompts */}
             <Text style={styles.quickPromptHeader}>💡 Suggested Health Questions:</Text>
@@ -251,6 +262,7 @@ export default function AiHubScreen() {
                   style={[
                     styles.msgBubble,
                     msg.role === 'user' ? styles.userMsgBubble : styles.aiMsgBubble,
+                    msg.isError && styles.errorMsgBubble,
                   ]}
                 >
                   <FormattedAiText
@@ -261,6 +273,16 @@ export default function AiHubScreen() {
                       msg.role === 'user' ? styles.userMsgText : styles.aiMsgText,
                     ]}
                   />
+                  {msg.isError && msg.retryText && (
+                    <TouchableOpacity
+                      style={styles.retryBtn}
+                      onPress={() => handleSendMessage(msg.retryText)}
+                      disabled={chatLoading}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.retryBtnText}>🔄 Retry Question</Text>
+                    </TouchableOpacity>
+                  )}
                   <Text
                     style={[
                       styles.msgTime,
@@ -273,17 +295,7 @@ export default function AiHubScreen() {
               </View>
             ))}
 
-            {chatLoading && (
-              <View style={[styles.msgWrapper, styles.aiMsgWrapper]}>
-                <View style={styles.aiAvatar}>
-                  <Text style={styles.aiAvatarText}>✨</Text>
-                </View>
-                <View style={[styles.msgBubble, styles.aiMsgBubble, styles.loadingBubble]}>
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                  <Text style={styles.loadingBubbleText}>Medora AI is thinking…</Text>
-                </View>
-              </View>
-            )}
+            {chatLoading && <AiThinkingBubble />}
 
             <View style={{ height: Spacing[4] }} />
           </ScrollView>
@@ -292,7 +304,7 @@ export default function AiHubScreen() {
           <View style={styles.inputBar}>
             <TextInput
               style={styles.textInput}
-              placeholder="Ask about medications, tests, health…"
+              placeholder={chatLoading ? 'Medora AI is thinking…' : 'Ask about medications, tests, health…'}
               placeholderTextColor={Colors.textDisabled}
               value={inputText}
               onChangeText={setInputText}
@@ -308,7 +320,11 @@ export default function AiHubScreen() {
               onPress={() => handleSendMessage()}
               disabled={!inputText.trim() || chatLoading}
             >
-              <Text style={styles.sendBtnText}>➤</Text>
+              {chatLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.sendBtnText}>➤</Text>
+              )}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -536,16 +552,25 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     ...Shadows.sm,
   },
-  loadingBubble: {
+  errorMsgBubble: {
+    backgroundColor: '#FFF5F5',
+    borderColor: '#FEB2B2',
+  },
+  retryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing[2],
-    paddingVertical: Spacing[3],
+    gap: Spacing[1],
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[1] + 2,
+    borderRadius: Radius.full,
+    alignSelf: 'flex-start',
+    marginTop: Spacing[2],
   },
-  loadingBubbleText: {
+  retryBtnText: {
     fontSize: Typography.xs,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
+    color: '#FFFFFF',
+    fontWeight: Typography.semibold,
   },
   msgText: { fontSize: Typography.sm, lineHeight: 20 },
   userMsgText: { color: '#FFFFFF' },

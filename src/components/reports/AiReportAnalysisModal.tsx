@@ -92,8 +92,8 @@ function ThinkingDots() {
 }
 
 const thinkStyle = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 5, alignItems: 'center', padding: 4 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' },
+  row: { flexDirection: 'row', gap: 6, alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
 });
 
 // ─── Animated Send Button ─────────────────────────────────────────────────────
