@@ -28,20 +28,18 @@ export function BackButton({ onPress, color }: BackButtonProps) {
   const [scale] = useState(() => new Animated.Value(1));
 
   const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.88,
+    Animated.timing(scale, {
+      toValue: 0.9,
+      duration: 70,
       useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
     }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scale, {
+    Animated.timing(scale, {
       toValue: 1,
+      duration: 100,
       useNativeDriver: true,
-      speed: 25,
-      bounciness: 12,
     }).start();
   };
 

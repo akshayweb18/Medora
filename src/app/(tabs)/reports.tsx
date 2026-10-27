@@ -26,12 +26,12 @@ export default function ReportsScreen() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
 
-  const loadReports = useCallback(() => {
+  const loadReports = useCallback((isInitial = false) => {
     if (!activeProfile) {
       if (!profileLoading) setLoading(false);
       return;
     }
-    setLoading(true);
+    if (isInitial) setLoading(true);
     getReportsByProfile(activeProfile.id, search, category)
       .then(setReports)
       .catch(console.error)
@@ -40,11 +40,11 @@ export default function ReportsScreen() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadReports();
+    loadReports(true);
   }, [loadReports, syncVersion]);
 
   useFocusEffect(useCallback(() => {
-    loadReports();
+    loadReports(false);
   }, [loadReports]));
 
   return (

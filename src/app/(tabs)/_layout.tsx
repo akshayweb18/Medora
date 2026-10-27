@@ -16,21 +16,19 @@ function SmoothTabBarButton({
   const [scale] = useState(() => new Animated.Value(1));
 
   const handlePressIn = (e: any) => {
-    Animated.spring(scale, {
-      toValue: 0.88,
+    Animated.timing(scale, {
+      toValue: 0.92,
+      duration: 70,
       useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
     }).start();
     onPressIn?.(e);
   };
 
   const handlePressOut = (e: any) => {
-    Animated.spring(scale, {
+    Animated.timing(scale, {
       toValue: 1,
+      duration: 100,
       useNativeDriver: true,
-      speed: 25,
-      bounciness: 8,
     }).start();
     onPressOut?.(e);
   };
@@ -62,11 +60,10 @@ function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focu
   const [focusAnim] = useState(() => new Animated.Value(focused ? 1 : 0));
 
   useEffect(() => {
-    Animated.spring(focusAnim, {
+    Animated.timing(focusAnim, {
       toValue: focused ? 1 : 0,
+      duration: 140,
       useNativeDriver: true,
-      speed: 20,
-      bounciness: 8,
     }).start();
   }, [focused, focusAnim]);
 
@@ -122,9 +119,10 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      detachInactiveScreens={false}
       screenOptions={{
         headerShown: false,
-        animation: 'fade',
+        animation: 'none',
         tabBarButton: (props) => <SmoothTabBarButton {...props} />,
         tabBarStyle: [
           styles.tabBar,

@@ -35,12 +35,12 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'medicine' | 'report' | 'measurement'>('all');
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback((isInitial = false) => {
     if (!activeProfile) {
       if (!profileLoading) setLoading(false);
       return;
     }
-    setLoading(true);
+    if (isInitial) setLoading(true);
     Promise.all([
       getMedicinesByProfile(activeProfile.id, true),
       getReportsByProfile(activeProfile.id),
@@ -77,11 +77,11 @@ export default function HistoryScreen() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadData();
+    loadData(true);
   }, [loadData, syncVersion]);
 
   useFocusEffect(useCallback(() => {
-    loadData();
+    loadData(false);
   }, [loadData]));
 
   const filtered = filter === 'all' ? items : items.filter(i => i.type === filter);

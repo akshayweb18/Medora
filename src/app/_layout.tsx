@@ -73,7 +73,14 @@ export default function RootLayout() {
       <AuthProvider>
         <ProfileProvider>
           <StatusBar style="dark" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: Colors.background },
+              animation: Platform.OS === 'web' ? 'none' : 'default',
+              animationDuration: 200,
+            }}
+          >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="auth/login" options={{ headerShown: false }} />
             <Stack.Screen name="medicines/add" options={{ presentation: 'modal', headerShown: false }} />

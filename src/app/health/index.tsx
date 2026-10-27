@@ -22,12 +22,12 @@ export default function HealthScreen() {
   const [history, setHistory] = useState<HealthMeasurement[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback((isInitial = false) => {
     if (!activeProfile) {
       if (!profileLoading) setLoading(false);
       return;
     }
-    setLoading(true);
+    if (isInitial) setLoading(true);
     Promise.all([
       getLatestByType(activeProfile.id),
       getAllMeasurements(activeProfile.id, 30),
@@ -38,11 +38,11 @@ export default function HealthScreen() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadData();
+    loadData(true);
   }, [loadData, syncVersion]);
 
   useFocusEffect(useCallback(() => {
-    loadData();
+    loadData(false);
   }, [loadData]));
 
   if (loading) return <LoadingState />;

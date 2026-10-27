@@ -24,10 +24,13 @@ export default function FamilyScreen() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useFocusEffect(useCallback(() => {
-    setLoading(true);
+  const loadProfiles = useCallback(() => {
     getAllProfiles().then(setProfiles).catch(console.error).finally(() => setLoading(false));
-  }, []));
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    loadProfiles();
+  }, [loadProfiles]));
 
   const handleDelete = (profile: Profile) => {
     if (profile.isDefault) {

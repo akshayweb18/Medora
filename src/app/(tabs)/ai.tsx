@@ -76,9 +76,9 @@ export default function AiHubScreen() {
   const [selectedReportFileOk, setSelectedReportFileOk] = useState(false);
   const [aiModalVisible, setAiModalVisible] = useState(false);
 
-  const loadReports = useCallback(async () => {
+  const loadReports = useCallback(async (isInitial = false) => {
     if (!activeProfile) return;
-    setReportsLoading(true);
+    if (isInitial) setReportsLoading(true);
     try {
       const data = await getReportsByProfile(activeProfile.id);
       setReports(data);
@@ -91,7 +91,7 @@ export default function AiHubScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadReports();
+      loadReports(false);
     }, [loadReports])
   );
 

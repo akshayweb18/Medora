@@ -25,12 +25,12 @@ export default function MedicinesScreen() {
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
 
-  const loadMedicines = useCallback(() => {
+  const loadMedicines = useCallback((isInitial = false) => {
     if (!activeProfile) {
       if (!profileLoading) setLoading(false);
       return;
     }
-    setLoading(true);
+    if (isInitial) setLoading(true);
     getMedicinesByProfile(activeProfile.id, showArchived)
       .then(setMedicines)
       .catch(console.error)
@@ -39,11 +39,11 @@ export default function MedicinesScreen() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadMedicines();
+    loadMedicines(true);
   }, [loadMedicines, syncVersion]);
 
   useFocusEffect(useCallback(() => {
-    loadMedicines();
+    loadMedicines(false);
   }, [loadMedicines]));
 
   const filtered = medicines.filter(m =>
