@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "MediVault",
-    "slug": "medivault",
+    "name": "Medora",
+    "slug": "medora",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "medivault",
+    "scheme": "medora",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.medivault.app",
+      "bundleIdentifier": "com.medora.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Required to scan prescriptions and capture medical images.",
         "NSPhotoLibraryUsageDescription": "Required to import medical reports and images from your photo library.",
@@ -21,7 +21,7 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundColor": "#27AE60"
       },
-      "package": "com.medivault.app",
+      "package": "com.medora.app",
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -32,7 +32,12 @@
     },
     "web": {
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "Medora",
+      "shortName": "Medora",
+      "themeColor": "#27AE60",
+      "backgroundColor": "#F8FAFC",
+      "display": "standalone"
     },
     "plugins": [
       "expo-router",

@@ -1,0 +1,25 @@
+{
+  "short_name": "Medora",
+  "name": "Medora - Personal Health Vault",
+  "description": "Your private, secure medical vault & AI health assistant",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#F8FAFC",
+  "theme_color": "#27AE60",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/"
+}
