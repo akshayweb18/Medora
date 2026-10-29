@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet, Animated, Pressable, Platform } from 'react-native';
+import { Text, StyleSheet, Animated, Pressable, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Radius } from '@/constants/theme';
@@ -19,20 +19,18 @@ function SmoothTabBarButton({
   };
 
   return (
-    <View style={styles.tabBarItem}>
-      <Pressable
-        {...rest}
-        onPress={handlePress}
-        android_ripple={{ color: Colors.primary + '18', borderless: true, radius: 28 }}
-        style={({ pressed }) => [
-          style,
-          styles.tabBarButton,
-          pressed && { opacity: 0.8 },
-        ]}
-      >
-        {children}
-      </Pressable>
-    </View>
+    <Pressable
+      {...rest}
+      onPress={handlePress}
+      android_ripple={{ color: Colors.primary + '18', borderless: true, radius: 28 }}
+      style={({ pressed }) => [
+        styles.tabBarButton,
+        style,
+        pressed && { opacity: 0.82 },
+      ]}
+    >
+      {children}
+    </Pressable>
   );
 }
 
@@ -43,7 +41,7 @@ function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focu
     Animated.timing(focusAnim, {
       toValue: focused ? 1 : 0,
       duration: 140,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
   }, [focused, focusAnim]);
 

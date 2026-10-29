@@ -40,7 +40,7 @@ export default function MedicinesScreen() {
       _hasLoadedMedicines = true;
       setMedicines(data);
     } catch (e) {
-      console.error(e);
+      console.warn('Medicines load warning:', e);
     } finally {
       setLoading(false);
     }

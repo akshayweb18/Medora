@@ -36,7 +36,9 @@ export default function ProfileScreen() {
     : (activeProfile?.relationship ? (activeProfile.relationship.charAt(0).toUpperCase() + activeProfile.relationship.slice(1)) : 'Family Member');
 
   useFocusEffect(useCallback(() => {
-    getAllProfiles().then(setProfiles).catch(console.error);
+    getAllProfiles().then(setProfiles).catch((err) => {
+      console.warn('Profiles load warning:', err);
+    });
   }, []));
 
   const handleSwitchProfile = (p: Profile) => {

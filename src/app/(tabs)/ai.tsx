@@ -94,7 +94,7 @@ export default function AiHubScreen() {
       _cachedAiReports = data;
       setReports(data);
     } catch (e) {
-      console.error('Failed to load reports in AI hub:', e);
+      console.warn('Failed to load reports in AI hub:', e);
     } finally {
       setReportsLoading(false);
     }

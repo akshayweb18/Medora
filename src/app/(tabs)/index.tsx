@@ -87,7 +87,7 @@ export default function HomeScreen() {
       setRecentReports(reports);
       setLatestMetrics(metrics);
     } catch (e) {
-      console.error('Home load error:', e);
+      console.warn('Home load warning:', e);
     } finally {
       setDataLoading(false);
     }

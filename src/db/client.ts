@@ -7,38 +7,111 @@ import { Platform } from 'react-native';
 
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+function isDatabaseLossError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = typeof err === 'object' && 'message' in (err as any) ? String((err as any).message) : String(err);
+  return /database not found|is closed|not open|nativeDatabaseId|no such database/i.test(msg);
+}
+
+/**
+ * Creates raw SQLite connection and runs schema migrations.
+ */
+async function openRawDatabase(): Promise<SQLite.SQLiteDatabase> {
+  let db: SQLite.SQLiteDatabase;
+  try {
+    db = await SQLite.openDatabaseAsync('medivault.db');
+  } catch (err) {
+    console.warn(
+      'Could not open persistent SQLite database (possibly locked or unavailable). Falling back to in-memory database:',
+      err
+    );
+    try {
+      db = await SQLite.openDatabaseAsync(':memory:');
+    } catch (fallbackErr) {
+      console.error('Failed to open fallback in-memory SQLite database:', fallbackErr);
+      throw fallbackErr;
+    }
+  }
+
+  try {
+    await migrate(db);
+  } catch (migrationErr) {
+    console.warn('Database migration warning:', migrationErr);
+  }
+
+  return db;
+}
+
+/**
+ * Low-level getter that ensures only a single connection promise is pending.
+ */
+function getRawDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!_dbPromise) {
-    _dbPromise = (async () => {
-      let db: SQLite.SQLiteDatabase;
-      try {
-        db = await SQLite.openDatabaseAsync('medivault.db');
-      } catch (err) {
-        if (Platform.OS === 'web') {
-          console.warn(
-            'Could not open persistent SQLite database on web (possibly locked by another tab or worker). Falling back to in-memory database:',
-            err
-          );
-          db = await SQLite.openDatabaseAsync(':memory:');
-        } else {
-          throw err;
-        }
-      }
-
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.addEventListener('beforeunload', () => {
-          db.closeAsync().catch(() => {});
-        });
-      }
-
-      await migrate(db);
-      return db;
-    })().catch((err) => {
+    _dbPromise = openRawDatabase().catch((err) => {
       _dbPromise = null;
       throw err;
     });
   }
   return _dbPromise;
+}
+
+/**
+ * Reset the database cache to allow fresh connection creation.
+ */
+export function resetDatabaseConnection(): void {
+  _dbPromise = null;
+}
+
+/**
+ * Wraps the SQLiteDatabase instance with an auto-reconnecting Proxy.
+ * If any query fails due to database loss, worker termination, or closed handle,
+ * it automatically recovers the connection and retries the query once.
+ */
+function createResilientDbProxy(dbInstance: SQLite.SQLiteDatabase): SQLite.SQLiteDatabase {
+  return new Proxy(dbInstance, {
+    get(target, prop, receiver) {
+      if (prop === 'closeAsync') {
+        return async (...args: any[]) => {
+          resetDatabaseConnection();
+          try {
+            return await (target as any).closeAsync?.(...args);
+          } catch {}
+        };
+      }
+
+      const orig = (target as any)[prop];
+      if (typeof orig === 'function') {
+        return async (...args: any[]) => {
+          try {
+            return await orig.apply(target, args);
+          } catch (err: unknown) {
+            if (isDatabaseLossError(err)) {
+              console.warn('[Database] Connection lost or database not found. Reconnecting and retrying operation...', err);
+              resetDatabaseConnection();
+              try {
+                const freshDb = await getRawDatabase();
+                const freshMethod = (freshDb as any)[prop];
+                if (typeof freshMethod === 'function') {
+                  return await freshMethod.apply(freshDb, args);
+                }
+              } catch (retryErr) {
+                console.error('[Database] Failed to recover database connection on retry:', retryErr);
+                throw retryErr;
+              }
+            }
+            throw err;
+          }
+        };
+      }
+
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+  const db = await getRawDatabase();
+  return createResilientDbProxy(db);
 }
 
 async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {

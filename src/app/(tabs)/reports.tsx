@@ -41,7 +41,7 @@ export default function ReportsScreen() {
       _hasLoadedReports = true;
       setReports(data);
     } catch (e) {
-      console.error(e);
+      console.warn('Reports load warning:', e);
     } finally {
       setLoading(false);
     }
